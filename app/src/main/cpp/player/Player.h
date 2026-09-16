@@ -5,6 +5,8 @@
 #include <media/NdkMediaCodec.h>
 
 #include <atomic>
+#include <map>
+#include <optional>
 #include <chrono>
 #include <string>
 #include <thread>
@@ -47,6 +49,9 @@ private:
     void audioLoop();
 
     void executeSeek(const SeekRequest &request);
+    struct KeyframeEntry { int64_t pts; int64_t pos; };
+    std::optional<KeyframeEntry> findKeyframeAtOrBefore(int64_t targetPts, uint64_t generation);
+    void recordVideoPacket(const AVPacket *packet);
     bool initVideoDecoder(AVCodecParameters *params);
     void closeVideoDecoder();
     void closeAudioDecoder();
@@ -88,6 +93,14 @@ private:
     ANativeWindow *window_ = nullptr;
 
     AVCodecParameters *videoParams_ = nullptr;
+
+    // Demux-thread only.
+    bool isMpegTs_ = false;
+    std::map<int64_t, int64_t> keyframeIndex_;  // video pts -> byte position
+    int64_t maxKeyframeInterval_ = 0;
+    int64_t lastKeyframePts_ = AV_NOPTS_VALUE;
+    bool awaitingVideoKeyframe_ = false;
+    int64_t firstKeyframePts_ = AV_NOPTS_VALUE;
     bool useHwDecoder_ = false;
     AMediaCodec *videoCodec_ = nullptr;
     AVCodecContext *videoCtx_ = nullptr;

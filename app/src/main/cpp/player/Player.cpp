@@ -4,6 +4,7 @@
 #include <android/native_window_jni.h>
 
 #include <algorithm>
+#include <iterator>
 #include <cstring>
 
 #include "CodecMap.h"
@@ -42,6 +43,7 @@ bool Player::open(const std::string &path) {
     AVStream *videoStream = fmt_->streams[videoStreamIndex_];
     videoTimeBase_ = videoStream->time_base;
     videoParams_ = videoStream->codecpar;
+    isMpegTs_ = fmt_->iformat && fmt_->iformat->name && std::strstr(fmt_->iformat->name, "mpegts");
     if (!mediaCodecMimeFor(videoParams_->codec_id) && !avcodec_find_decoder(videoParams_->codec_id)) {
         avformat_close_input(&fmt_);
         return false;
@@ -176,18 +178,93 @@ int64_t Player::positionMs() const { return opened_ ? positionMs_.load() : 0; }
 
 int64_t Player::durationMs() const { return opened_ ? durationMs_ : 0; }
 
+void Player::recordVideoPacket(const AVPacket *packet) {
+    if (!(packet->flags & AV_PKT_FLAG_KEY) || packet->pos < 0) return;
+    int64_t pts = packet->pts != AV_NOPTS_VALUE ? packet->pts : packet->dts;
+    if (pts == AV_NOPTS_VALUE) return;
+    keyframeIndex_[pts] = packet->pos;
+    if (lastKeyframePts_ != AV_NOPTS_VALUE && pts > lastKeyframePts_) {
+        maxKeyframeInterval_ = std::max(maxKeyframeInterval_, pts - lastKeyframePts_);
+    }
+    lastKeyframePts_ = pts;
+}
+
+// MPEG-TS has no container index and FFmpeg's mpegts timestamp seek lands on an arbitrary
+// packet, so decoding would resume only at the *next* keyframe (up to a full GOP late).
+// Use av_add_index_entry/av_index_search_timestamp to build and query our own
+// keyframe index and seek to the keyframe at or before the target by byte position.
+std::optional<Player::KeyframeEntry> Player::findKeyframeAtOrBefore(int64_t targetPts, uint64_t generation) {
+    auto it = keyframeIndex_.upper_bound(targetPts);
+    if (it != keyframeIndex_.begin()) {
+        auto prev = std::prev(it);
+        bool nextKnown = it != keyframeIndex_.end() && it->first - prev->first <= maxKeyframeInterval_;
+        if (maxKeyframeInterval_ > 0 && (nextKnown || targetPts - prev->first <= maxKeyframeInterval_)) {
+            return KeyframeEntry{prev->first, prev->second};
+        }
+    }
+
+    AVStream *stream = fmt_->streams[videoStreamIndex_];
+    int64_t startPts = stream->start_time != AV_NOPTS_VALUE ? stream->start_time : 0;
+    int64_t window = maxKeyframeInterval_ > 0
+                             ? maxKeyframeInterval_
+                             : av_rescale_q(2, AVRational{1, 1}, videoTimeBase_);
+    AVPacket *packet = av_packet_alloc();
+    std::optional<KeyframeEntry> best;
+    while (running_ && !seekController_.isStale(generation)) {
+        int64_t probeFrom = std::max(startPts, targetPts - window);
+        av_seek_frame(fmt_, videoStreamIndex_, probeFrom, AVSEEK_FLAG_BACKWARD);
+        lastKeyframePts_ = AV_NOPTS_VALUE;
+        while (av_read_frame(fmt_, packet) >= 0) {
+            bool isVideo = packet->stream_index == videoStreamIndex_;
+            int64_t pts = packet->pts != AV_NOPTS_VALUE ? packet->pts : packet->dts;
+            if (isVideo) recordVideoPacket(packet);
+            av_packet_unref(packet);
+            if (!isVideo || pts == AV_NOPTS_VALUE) continue;
+            if (pts > targetPts) break;
+            if (seekController_.isStale(generation)) break;
+        }
+        auto found = keyframeIndex_.upper_bound(targetPts);
+        if (found != keyframeIndex_.begin() && std::prev(found)->first >= probeFrom) {
+            best = KeyframeEntry{std::prev(found)->first, std::prev(found)->second};
+            break;
+        }
+        if (probeFrom == startPts) break;
+        window *= 2;
+    }
+    av_packet_free(&packet);
+    lastKeyframePts_ = AV_NOPTS_VALUE;
+    return best;
+}
+
 void Player::executeSeek(const SeekRequest &request) {
     seekStart_ = std::chrono::steady_clock::now();
-    int64_t targetUs = request.positionMs * 1000;
-    av_seek_frame(fmt_, -1, targetUs, AVSEEK_FLAG_BACKWARD);
+    bool seeked = false;
+    if (isMpegTs_) {
+        AVStream *stream = fmt_->streams[videoStreamIndex_];
+        int64_t startPts = stream->start_time != AV_NOPTS_VALUE ? stream->start_time : 0;
+        int64_t targetPts = startPts + av_rescale_q(request.positionMs, AVRational{1, 1000}, videoTimeBase_);
+        auto keyframe = findKeyframeAtOrBefore(targetPts, request.generation);
+        if (seekController_.isStale(request.generation)) return;
+        if (keyframe) {
+            seeked = av_seek_frame(fmt_, videoStreamIndex_, keyframe->pos, AVSEEK_FLAG_BYTE) >= 0;
+        }
+    }
+    if (!seeked) {
+        av_seek_frame(fmt_, -1, request.positionMs * 1000, AVSEEK_FLAG_BACKWARD);
+    }
+    lastKeyframePts_ = AV_NOPTS_VALUE;
+    awaitingVideoKeyframe_ = true;
+    firstKeyframePts_ = AV_NOPTS_VALUE;
     videoQueue_.flush();
     audioQueue_.flush();
     flushVideoDecoder_ = true;
     flushAudioDecoder_ = true;
     needKeyframe_ = true;
     pendingImmediateFrame_ = true;
-    LOGI("seek executed generation=%llu positionMs=%lld",
-         static_cast<unsigned long long>(request.generation), static_cast<long long>(request.positionMs));
+    LOGI("seek executed generation=%llu positionMs=%lld prepare_ms=%lld",
+         static_cast<unsigned long long>(request.generation), static_cast<long long>(request.positionMs),
+         static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                 std::chrono::steady_clock::now() - seekStart_).count()));
 }
 
 void Player::demuxLoop() {
@@ -211,9 +288,28 @@ void Player::demuxLoop() {
             continue;
         }
         if (packet->stream_index == videoStreamIndex_) {
+            if (isMpegTs_) recordVideoPacket(packet);
+            if (awaitingVideoKeyframe_) {
+                if (!(packet->flags & AV_PKT_FLAG_KEY)) {
+                    av_packet_free(&packet);
+                    continue;
+                }
+                awaitingVideoKeyframe_ = false;
+                firstKeyframePts_ = packet->pts;
+            }
             videoQueue_.push(packet, currentGeneration);
         } else if (hasAudio_ && packet->stream_index == audioStreamIndex_) {
-            audioQueue_.push(packet, currentGeneration);
+            // Audio before the first video keyframe cannot be presented in sync, and queueing it
+            // would stall the demuxer (queue bound) while video still searches for a keyframe.
+            bool beforeKeyframe = awaitingVideoKeyframe_ ||
+                                  (firstKeyframePts_ != AV_NOPTS_VALUE && packet->pts != AV_NOPTS_VALUE &&
+                                   av_compare_ts(packet->pts, audioTimeBase_, firstKeyframePts_, videoTimeBase_) < 0);
+            if (beforeKeyframe) {
+                av_packet_free(&packet);
+            } else {
+                firstKeyframePts_ = AV_NOPTS_VALUE;
+                audioQueue_.push(packet, currentGeneration);
+            }
         } else {
             av_packet_free(&packet);
         }
