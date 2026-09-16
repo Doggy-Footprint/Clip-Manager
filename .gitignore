@@ -1,2 +1,8 @@
 .env
 ref/
+agent-docs/contracts/.running/
+agent-docs/contracts/.seed/
+.harness/sessions/.running/
+.harness/**/__pycache__
+.DS_Store
+app/libs/ffmpeg-kit-full-gpl-6.0-2.LTS.aar
