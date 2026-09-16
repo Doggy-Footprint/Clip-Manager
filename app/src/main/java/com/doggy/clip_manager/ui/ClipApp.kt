@@ -1,57 +1,78 @@
 package com.doggy.clip_manager.ui
 
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Surface
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import com.doggy.clip_manager.navigation.ClipNavHost
-import com.doggy.clip_manager.navigation.TopLevelDestination
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.dimensionResource
+import com.doggy.clip_manager.R
+import com.doggy.clip_manager.feature.browser.BrowserScreenRoute
+import com.doggy.clip_manager.feature.player.PlayerPane
+
+private enum class LayerLayout { WIDE, THIN, PORTRAIT }
 
 @Composable
 fun ClipApp() {
-    val navController = rememberNavController()
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = backStackEntry?.destination
-    val topLevel = TopLevelDestination.entries.firstOrNull { dest ->
-        currentDestination?.hierarchy?.any { it.hasRoute(dest.routeClass) } == true
-    }
+    var selectedPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
 
-    NavigationSuiteScaffold(
-        layoutType = if (currentDestination != null && topLevel == null) {
-            NavigationSuiteType.None
-        } else {
-            NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfo())
-        },
-        navigationSuiteItems = {
-            TopLevelDestination.entries.forEach { dest ->
-                val selected = dest == topLevel
-                item(
-                    selected = selected,
-                    onClick = {
-                        navController.navigate(dest.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        Icon(if (selected) dest.selectedIcon else dest.unselectedIcon, contentDescription = null)
-                    },
-                    label = { Text(stringResource(dest.labelRes)) },
+    BackHandler(enabled = isFullscreen) { isFullscreen = false }
+
+    Surface(Modifier.fillMaxSize()) {
+        BoxWithConstraints(Modifier.safeDrawingPadding()) {
+            val viewer = @Composable { modifier: Modifier ->
+                PlayerPane(
+                    path = selectedPath,
+                    isFullscreen = isFullscreen,
+                    onToggleFullscreen = { isFullscreen = !isFullscreen },
+                    modifier = modifier,
                 )
             }
-        },
-    ) {
-        ClipNavHost(navController = navController)
+            if (isFullscreen) {
+                viewer(Modifier.fillMaxSize())
+                return@BoxWithConstraints
+            }
+            val layout = when {
+                maxHeight > maxWidth -> LayerLayout.PORTRAIT
+                maxHeight < dimensionResource(R.dimen.thin_layout_max_height) -> LayerLayout.THIN
+                else -> LayerLayout.WIDE
+            }
+            Row(Modifier.fillMaxSize()) {
+                TabLayer(compact = layout != LayerLayout.WIDE)
+                VerticalDivider()
+                val explorer = @Composable { modifier: Modifier ->
+                    BrowserScreenRoute(
+                        onOpenVideo = { selectedPath = it },
+                        selectedPath = selectedPath,
+                        compact = layout == LayerLayout.THIN,
+                        modifier = modifier,
+                    )
+                }
+                when (layout) {
+                    LayerLayout.PORTRAIT -> Column(Modifier.weight(1f)) {
+                        explorer(Modifier.weight(1f))
+                        viewer(Modifier.weight(1f))
+                    }
+                    else -> {
+                        val explorerWidth = if (layout == LayerLayout.THIN) R.dimen.explorer_thin_width else R.dimen.explorer_width
+                        explorer(Modifier.width(dimensionResource(explorerWidth)).fillMaxHeight())
+                        VerticalDivider()
+                        viewer(Modifier.weight(1f))
+                    }
+                }
+            }
+        }
     }
 }

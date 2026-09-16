@@ -20,10 +20,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doggy.clip_manager.core.designsystem.component.EmptyState
 import com.doggy.clip_manager.core.designsystem.icon.ClipIcons
 import com.doggy.clip_manager.core.designsystem.theme.ClipTheme
 import com.doggy.clip_manager.core.model.SeekMode
@@ -65,9 +65,36 @@ import java.io.File
 private const val CONTROLS_AUTO_HIDE_MS = 5_000L
 private const val SKIP_STEP_MS = 5_000L
 
+@Composable
+fun PlayerPane(
+    path: String?,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: PlayerViewModel = hiltViewModel(),
+) {
+    if (path == null) {
+        EmptyState(
+            icon = ClipIcons.Video,
+            title = stringResource(R.string.feature_player_empty_title),
+            modifier = modifier,
+        )
+        return
+    }
+    LaunchedEffect(path) { viewModel.open(path) }
+    val currentPath = viewModel.path ?: return
+    key(currentPath) {
+        Box(modifier) { PlayerContent(viewModel, isFullscreen, onToggleFullscreen) }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
+private fun PlayerContent(
+    viewModel: PlayerViewModel,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+) {
     val player = viewModel.player
     val durationMs = viewModel.durationMs
     val scrubThrottle = remember { ScrubThrottle() }
@@ -95,7 +122,7 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
     }
 
     val uiState = PlayerUiState(
-        title = File(viewModel.path).name,
+        title = File(viewModel.path.orEmpty()).name,
         opened = viewModel.opened,
         videoAspectRatio = viewModel.videoAspectRatio,
         positionMs = sliderPositionMs.toLong(),
@@ -131,6 +158,8 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
                 player.seekTo(throttled, SeekMode.SCRUB)
             }
         },
+        isFullscreen = isFullscreen,
+        onToggleFullscreen = onToggleFullscreen,
         onSeekFinished = {
             scrubThrottle.onDragEnd()
             isDragging = false
@@ -170,6 +199,8 @@ internal fun PlayerScreen(
     onSeekChange: (positionMs: Float) -> Unit,
     onSeekFinished: () -> Unit,
     videoContent: @Composable (Modifier) -> Unit,
+    isFullscreen: Boolean = false,
+    onToggleFullscreen: () -> Unit = {},
 ) {
     val backgroundColor = colorResource(R.color.feature_player_background)
     val contentColor = colorResource(R.color.feature_player_content)
@@ -223,7 +254,6 @@ internal fun PlayerScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Brush.verticalGradient(listOf(scrimColor, Color.Transparent)))
-                            .statusBarsPadding()
                             .padding(
                                 horizontal = dimensionResource(R.dimen.feature_player_overlay_padding_horizontal),
                                 vertical = dimensionResource(R.dimen.feature_player_overlay_padding_vertical),
@@ -252,7 +282,6 @@ internal fun PlayerScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Brush.verticalGradient(listOf(Color.Transparent, scrimColor)))
-                            .navigationBarsPadding()
                             .padding(
                                 horizontal = dimensionResource(R.dimen.feature_player_overlay_padding_horizontal),
                                 vertical = dimensionResource(R.dimen.feature_player_overlay_padding_vertical),
@@ -303,29 +332,43 @@ internal fun PlayerScreen(
                                 color = contentColor,
                             )
                         }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(
-                                controlSpacing,
-                                Alignment.CenterHorizontally,
-                            ),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            PlayerControlButton(ClipIcons.SkipPrevious, R.string.feature_player_previous, false, iconColors) {}
-                            PlayerControlButton(ClipIcons.Replay5, R.string.feature_player_rewind, uiState.opened, iconColors) {
-                                onSkip(-SKIP_STEP_MS)
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(
+                                    controlSpacing,
+                                    Alignment.CenterHorizontally,
+                                ),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                PlayerControlButton(ClipIcons.SkipPrevious, R.string.feature_player_previous, false, iconColors) {}
+                                PlayerControlButton(ClipIcons.Replay5, R.string.feature_player_rewind, uiState.opened, iconColors) {
+                                    onSkip(-SKIP_STEP_MS)
+                                }
+                                PlayerControlButton(
+                                    icon = if (uiState.isPlaying) ClipIcons.Pause else ClipIcons.Play,
+                                    description = if (uiState.isPlaying) R.string.feature_player_pause else R.string.feature_player_play,
+                                    enabled = uiState.opened,
+                                    colors = iconColors,
+                                    onClick = onTogglePlayback,
+                                )
+                                PlayerControlButton(ClipIcons.Forward5, R.string.feature_player_forward, uiState.opened, iconColors) {
+                                    onSkip(SKIP_STEP_MS)
+                                }
+                                PlayerControlButton(ClipIcons.SkipNext, R.string.feature_player_next, false, iconColors) {}
                             }
-                            PlayerControlButton(
-                                icon = if (uiState.isPlaying) ClipIcons.Pause else ClipIcons.Play,
-                                description = if (uiState.isPlaying) R.string.feature_player_pause else R.string.feature_player_play,
-                                enabled = uiState.opened,
+                            IconButton(
+                                onClick = onToggleFullscreen,
                                 colors = iconColors,
-                                onClick = onTogglePlayback,
-                            )
-                            PlayerControlButton(ClipIcons.Forward5, R.string.feature_player_forward, uiState.opened, iconColors) {
-                                onSkip(SKIP_STEP_MS)
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                            ) {
+                                Icon(
+                                    imageVector = if (isFullscreen) ClipIcons.FullscreenExit else ClipIcons.Fullscreen,
+                                    contentDescription = stringResource(
+                                        if (isFullscreen) R.string.feature_player_exit_fullscreen else R.string.feature_player_fullscreen,
+                                    ),
+                                )
                             }
-                            PlayerControlButton(ClipIcons.SkipNext, R.string.feature_player_next, false, iconColors) {}
                         }
                     }
                 }

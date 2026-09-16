@@ -1,7 +1,9 @@
 <resources>
     <string name="app_name">clip-manager</string>
     <string name="tab_files">파일</string>
-    <string name="tab_tags">태그</string>
-    <string name="tags_empty_title">아직 태그가 없습니다</string>
-    <string name="tags_empty_body">파일에 태그를 붙이면 여기에서 모아 볼 수 있습니다.</string>
+    <string name="tab_videos">동영상</string>
+    <string name="tab_audio">음성</string>
+    <string name="tab_images">이미지</string>
+    <string name="tab_dummy_tag">여행</string>
+    <string name="tab_settings">설정</string>
 </resources>
