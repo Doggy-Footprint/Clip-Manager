@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Downloads the FFmpeg 6.0 public headers matching the prebuilt libs in app/src/main/jniLibs
+# Downloads the FFmpeg 6.0 public headers matching the prebuilt libs in core/player/src/main/jniLibs
 # (ffmpeg-kit 6.0-2.LTS full-gpl).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-INCLUDE="$ROOT/app/src/main/cpp/include"
+INCLUDE="$ROOT/core/player/src/main/cpp/include"
 LIBS=(avcodec avformat avutil swresample swscale)
 
 if [ -f "$INCLUDE/libavformat/avformat.h" ]; then

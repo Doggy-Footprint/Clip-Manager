@@ -5,12 +5,11 @@ agent-docs/contracts/.seed/
 .harness/sessions/.running/
 .harness/**/__pycache__
 .DS_Store
-app/src/main/jniLibs/
-app/src/main/cpp/include/
+core/player/src/main/jniLibs/
+core/player/src/main/cpp/include/
 .gradle/
 build/
-app/build/
-app/.cxx/
+**/.cxx/
 keystore.properties
 *.jks
 *.keystore

@@ -7,8 +7,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-PLAYER_DIR="$REPO_ROOT/app/src/main/cpp/player"
-TEST_SRC="$REPO_ROOT/app/src/main/cpp/test/seek_controller_test.cpp"
+PLAYER_DIR="$REPO_ROOT/core/player/src/main/cpp/player"
+TEST_SRC="$REPO_ROOT/core/player/src/main/cpp/test/seek_controller_test.cpp"
 IMPL_SRC="$PLAYER_DIR/SeekController.cpp"
 
 if [ ! -f "$TEST_SRC" ]; then

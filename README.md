@@ -21,8 +21,8 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 
 | 경로 | 내용 | 얻는 방법 |
 |---|---|---|
-| `app/src/main/jniLibs/{arm64-v8a,x86_64}/` | `libavcodec.so`, `libavformat.so`, `libavutil.so`, `libswresample.so`, `libswscale.so`, `libc++_shared.so` | ffmpeg-kit `6.0-2.LTS` full-gpl aar의 `jni/<abi>/`에서 꺼냅니다. 로컬에만 보관합니다. |
-| `app/src/main/cpp/include/` | FFmpeg 6.0 헤더 | `./scripts/fetch-ffmpeg-headers.sh` |
+| `core/player/src/main/jniLibs/{arm64-v8a,x86_64}/` | `libavcodec.so`, `libavformat.so`, `libavutil.so`, `libswresample.so`, `libswscale.so`, `libc++_shared.so` | ffmpeg-kit `6.0-2.LTS` full-gpl aar의 `jni/<abi>/`에서 꺼냅니다. 로컬에만 보관합니다. |
+| `core/player/src/main/cpp/include/` | FFmpeg 6.0 헤더 | `./scripts/fetch-ffmpeg-headers.sh` |
 | `keystore.properties`, `release.jks` | 릴리스 서명 정보 | 아래 [릴리스 빌드](#릴리스-빌드) 참고 |
 | `.env` | 로컬 환경 변수 | — |
 
@@ -84,7 +84,8 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 ### 자동 테스트
 
 ```bash
-./gradlew :app:testDebugUnitTest  # JVM: FileListing, ScrubThrottle
+./gradlew testDebugUnitTest       # JVM + Robolectric: 모든 모듈 단위 테스트
+./gradlew verifyRoborazziDebug    # 스크린샷 비교 (기준 갱신: recordRoborazziDebug)
 ./scripts/test-native.sh          # 호스트 C++: SeekController
 ```
 

@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             content {
@@ -24,3 +25,13 @@ dependencyResolutionManagement {
 
 rootProject.name = "clip-manager"
 include(":app")
+include(":core:data")
+include(":core:database")
+include(":core:designsystem")
+include(":core:model")
+include(":core:player")
+include(":core:testing")
+include(":core:ui")
+include(":feature:browser")
+include(":feature:player")
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
