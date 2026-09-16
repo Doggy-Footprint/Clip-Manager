@@ -10,7 +10,7 @@ MPEG-TS를 seek bar로 탐색할 때 사용자가 느끼는 지연을 최소화�
 - keyframe seek을 기본으로 한다.
 
 ## Decision
-- 재생 엔진은 NDK로 직접 작성한다. FFmpeg 6.0으로 demux하고, 디코딩은 NDK MediaCodec을 먼저 쓰고 실패하면 avcodec으로 넘어간다. 오디오는 AAudio(API 26+) 또는 AudioTrack으로 재생한다.
+- 재생 엔진은 NDK로 직접 작성한다. FFmpeg 6.0으로 demux하고, 디코딩은 NDK MediaCodec을 먼저 쓰고 실패하면 avcodec으로 넘어간다. MediaCodec이 첫 입력 후 1초 안에 출력(포맷 변경 알림 포함)을 내지 않으면 그 파일은 avcodec으로 전환한다. 이 1초에는 코덱에 입력을 넣거나 출력을 기다린 시간만 포함하고, 일시정지나 demux 대기 시간은 포함하지 않는다. 오디오는 AAudio(API 26+) 또는 AudioTrack으로 재생한다.
 - seek 요청 병합과 이전 결과 폐기는 `app/src/main/cpp/player/SeekController.h`의 generation 카운터로 처리한다.
 
 ## Alternatives

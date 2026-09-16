@@ -107,7 +107,9 @@ private:
     // Some MediaCodec decoders (e.g. emulator c2.goldfish.*) accept input but never emit output.
     bool hwDecoderDisabled_ = false;
     bool hwOutputSeen_ = false;
-    std::optional<std::chrono::steady_clock::time_point> hwFirstInputTime_;
+    bool hwInputQueued_ = false;
+    // Only time spent feeding/draining the codec counts, so pauses cannot trigger the fallback.
+    std::chrono::steady_clock::duration hwTimeWithoutOutput_{};
     AMediaCodec *videoCodec_ = nullptr;
     AVCodecContext *videoCtx_ = nullptr;
     AVBSFContext *bsf_ = nullptr;

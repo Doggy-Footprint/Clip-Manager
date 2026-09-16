@@ -81,7 +81,8 @@ bool Player::initVideoDecoder(AVCodecParameters *params) {
     const char *mime = mediaCodecMimeFor(id);
     useHwDecoder_ = false;
     hwOutputSeen_ = false;
-    hwFirstInputTime_.reset();
+    hwInputQueued_ = false;
+    hwTimeWithoutOutput_ = {};
 
     if (mime && !hwDecoderDisabled_) {
         // TS packetizes H.264/HEVC as Annex-B already; other containers store
@@ -342,8 +343,7 @@ void Player::renderSwFrame(AVFrame *frame) {
 }
 
 bool Player::hwDecoderStalled() {
-    if (hwOutputSeen_ || !hwFirstInputTime_) return false;
-    if (std::chrono::steady_clock::now() - *hwFirstInputTime_ < kHwFirstOutputTimeout) return false;
+    if (hwOutputSeen_ || !hwInputQueued_ || hwTimeWithoutOutput_ < kHwFirstOutputTimeout) return false;
     LOGI("hw decoder produced no output, falling back to software decoding");
     hwDecoderDisabled_ = true;
     surfaceChanged_ = true;
@@ -379,8 +379,17 @@ void Player::drainHwOutput(uint64_t generation) {
 void Player::feedAndDrainHw(AVPacket *packet, uint64_t generation) {
     // Dropping a packet when no input buffer is free corrupts every frame up to the next keyframe,
     // so wait for one while draining output (which is what frees input buffers).
+    auto feedStart = std::chrono::steady_clock::now();
+    auto accountWait = [&] {
+        if (hwInputQueued_ && !hwOutputSeen_) {
+            auto now = std::chrono::steady_clock::now();
+            hwTimeWithoutOutput_ += now - feedStart;
+            feedStart = now;
+        }
+    };
     while (true) {
         if (!running_ || surfaceChanged_ || flushVideoDecoder_ || seekController_.isStale(generation)) return;
+        accountWait();
         if (hwDecoderStalled()) return;
         ssize_t inputIndex = AMediaCodec_dequeueInputBuffer(videoCodec_, 10000);
         if (inputIndex >= 0) {
@@ -392,12 +401,16 @@ void Player::feedAndDrainHw(AVPacket *packet, uint64_t generation) {
                                     ? 0
                                     : static_cast<int64_t>(packet->pts * av_q2d(videoTimeBase_) * 1000000.0);
             AMediaCodec_queueInputBuffer(videoCodec_, inputIndex, 0, copySize, ptsUs, 0);
-            if (!hwFirstInputTime_) hwFirstInputTime_ = std::chrono::steady_clock::now();
+            if (!hwInputQueued_) {
+                hwInputQueued_ = true;
+                feedStart = std::chrono::steady_clock::now();
+            }
             break;
         }
         drainHwOutput(generation);
     }
     drainHwOutput(generation);
+    accountWait();
     hwDecoderStalled();
 }
 
