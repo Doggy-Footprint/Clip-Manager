@@ -10,6 +10,7 @@ plugins {
 android {
     namespace = "com.doggy.clip_manager"
 
+    compileOptions.isCoreLibraryDesugaringEnabled = true
     defaultConfig {
         applicationId = "com.doggy.clip_manager"
         versionCode = 1
@@ -49,6 +50,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(projects.core.designsystem)
     implementation(projects.core.ui)
     implementation(projects.feature.browser)

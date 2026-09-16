@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_notification_channel_name">Video editing</string>
+    <string name="editor_notification_title">Editing video</string>
+    <string name="editor_notification_progress">Progress: %1$d%%</string>
+    <string name="editor_notification_cancel">Cancel</string>
+</resources>
