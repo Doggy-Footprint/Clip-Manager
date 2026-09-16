@@ -20,6 +20,7 @@ namespace clip {
 
 namespace {
 constexpr size_t kMaxQueuedPackets = 256;
+constexpr std::chrono::milliseconds kHwFirstOutputTimeout{1000};
 }
 
 Player::Player(JavaVM *vm) : vm_(vm) {}
@@ -79,8 +80,10 @@ bool Player::initVideoDecoder(AVCodecParameters *params) {
     AVCodecID id = params->codec_id;
     const char *mime = mediaCodecMimeFor(id);
     useHwDecoder_ = false;
+    hwOutputSeen_ = false;
+    hwFirstInputTime_.reset();
 
-    if (mime) {
+    if (mime && !hwDecoderDisabled_) {
         // TS packetizes H.264/HEVC as Annex-B already; other containers store
         // length-prefixed NAL units and need conversion before MediaCodec
         // (which expects inline SPS/PPS) will accept them.
@@ -338,41 +341,64 @@ void Player::renderSwFrame(AVFrame *frame) {
     ANativeWindow_unlockAndPost(window_);
 }
 
-void Player::feedAndDrainHw(AVPacket *packet, uint64_t generation) {
-    ssize_t inputIndex = AMediaCodec_dequeueInputBuffer(videoCodec_, 10000);
-    if (inputIndex >= 0) {
-        size_t bufferSize = 0;
-        uint8_t *buffer = AMediaCodec_getInputBuffer(videoCodec_, inputIndex, &bufferSize);
-        size_t copySize = std::min(static_cast<size_t>(packet->size), bufferSize);
-        std::memcpy(buffer, packet->data, copySize);
-        int64_t ptsUs = packet->pts == AV_NOPTS_VALUE
-                                ? 0
-                                : static_cast<int64_t>(packet->pts * av_q2d(videoTimeBase_) * 1000000.0);
-        AMediaCodec_queueInputBuffer(videoCodec_, inputIndex, 0, copySize, ptsUs, 0);
-    }
+bool Player::hwDecoderStalled() {
+    if (hwOutputSeen_ || !hwFirstInputTime_) return false;
+    if (std::chrono::steady_clock::now() - *hwFirstInputTime_ < kHwFirstOutputTimeout) return false;
+    LOGI("hw decoder produced no output, falling back to software decoding");
+    hwDecoderDisabled_ = true;
+    surfaceChanged_ = true;
+    return true;
+}
 
+void Player::drainHwOutput(uint64_t generation) {
     AMediaCodecBufferInfo info;
     ssize_t outputIndex = AMediaCodec_dequeueOutputBuffer(videoCodec_, &info, 10000);
-    if (outputIndex >= 0) {
-        double pts = info.presentationTimeUs / 1000000.0;
-        bool render = !seekController_.isStale(generation);
-        if (render && pendingImmediateFrame_) {
-            clock_.reset(pts);
+    if (outputIndex == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED) hwOutputSeen_ = true;
+    if (outputIndex < 0) return;
+    hwOutputSeen_ = true;
+    double pts = info.presentationTimeUs / 1000000.0;
+    bool render = !seekController_.isStale(generation);
+    if (render && pendingImmediateFrame_) {
+        clock_.reset(pts);
+        positionMs_ = static_cast<int64_t>(pts * 1000);
+        pendingImmediateFrame_ = false;
+        LOGI("first frame after seek latency_ms=%lld",
+             static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                     std::chrono::steady_clock::now() - seekStart_).count()));
+    } else if (render) {
+        pacePresentation(pts);
+        render = !seekController_.isStale(generation);
+        if (render) {
             positionMs_ = static_cast<int64_t>(pts * 1000);
-            pendingImmediateFrame_ = false;
-            LOGI("first frame after seek latency_ms=%lld",
-                 static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                         std::chrono::steady_clock::now() - seekStart_).count()));
-        } else if (render) {
-            pacePresentation(pts);
-            render = !seekController_.isStale(generation);
-            if (render) {
-                positionMs_ = static_cast<int64_t>(pts * 1000);
-                if (!hasAudio_) clock_.set(pts);
-            }
+            if (!hasAudio_) clock_.set(pts);
         }
-        AMediaCodec_releaseOutputBuffer(videoCodec_, outputIndex, render);
     }
+    AMediaCodec_releaseOutputBuffer(videoCodec_, outputIndex, render);
+}
+
+void Player::feedAndDrainHw(AVPacket *packet, uint64_t generation) {
+    // Dropping a packet when no input buffer is free corrupts every frame up to the next keyframe,
+    // so wait for one while draining output (which is what frees input buffers).
+    while (true) {
+        if (!running_ || surfaceChanged_ || flushVideoDecoder_ || seekController_.isStale(generation)) return;
+        if (hwDecoderStalled()) return;
+        ssize_t inputIndex = AMediaCodec_dequeueInputBuffer(videoCodec_, 10000);
+        if (inputIndex >= 0) {
+            size_t bufferSize = 0;
+            uint8_t *buffer = AMediaCodec_getInputBuffer(videoCodec_, inputIndex, &bufferSize);
+            size_t copySize = std::min(static_cast<size_t>(packet->size), bufferSize);
+            std::memcpy(buffer, packet->data, copySize);
+            int64_t ptsUs = packet->pts == AV_NOPTS_VALUE
+                                    ? 0
+                                    : static_cast<int64_t>(packet->pts * av_q2d(videoTimeBase_) * 1000000.0);
+            AMediaCodec_queueInputBuffer(videoCodec_, inputIndex, 0, copySize, ptsUs, 0);
+            if (!hwFirstInputTime_) hwFirstInputTime_ = std::chrono::steady_clock::now();
+            break;
+        }
+        drainHwOutput(generation);
+    }
+    drainHwOutput(generation);
+    hwDecoderStalled();
 }
 
 void Player::renderHwFrame(AVPacket *packet, uint64_t generation) {

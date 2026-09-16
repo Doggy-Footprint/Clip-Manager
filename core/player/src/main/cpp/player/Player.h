@@ -57,6 +57,8 @@ private:
     void closeAudioDecoder();
     void renderHwFrame(AVPacket *packet, uint64_t generation);
     void feedAndDrainHw(AVPacket *packet, uint64_t generation);
+    void drainHwOutput(uint64_t generation);
+    bool hwDecoderStalled();
     void renderSwFrame(AVFrame *frame);
     void pacePresentation(double ptsSeconds);
 
@@ -102,6 +104,10 @@ private:
     bool awaitingVideoKeyframe_ = false;
     int64_t firstKeyframePts_ = AV_NOPTS_VALUE;
     bool useHwDecoder_ = false;
+    // Some MediaCodec decoders (e.g. emulator c2.goldfish.*) accept input but never emit output.
+    bool hwDecoderDisabled_ = false;
+    bool hwOutputSeen_ = false;
+    std::optional<std::chrono::steady_clock::time_point> hwFirstInputTime_;
     AMediaCodec *videoCodec_ = nullptr;
     AVCodecContext *videoCtx_ = nullptr;
     AVBSFContext *bsf_ = nullptr;
