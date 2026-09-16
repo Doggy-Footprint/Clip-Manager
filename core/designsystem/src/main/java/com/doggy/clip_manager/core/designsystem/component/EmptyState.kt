@@ -14,7 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.dimensionResource
+import com.doggy.clip_manager.core.designsystem.R
 
 @Composable
 fun EmptyState(
@@ -26,11 +27,11 @@ fun EmptyState(
     onAction: (() -> Unit)? = null,
 ) {
     Column(
-        modifier = modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+        modifier = modifier.fillMaxSize().padding(dimensionResource(R.dimen.clip_empty_state_padding)),
+        verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.clip_empty_state_spacing), Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+        Icon(icon, contentDescription = null, modifier = Modifier.size(dimensionResource(R.dimen.clip_empty_state_icon_size)), tint = MaterialTheme.colorScheme.primary)
         Text(title, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
         if (body != null) {
             Text(

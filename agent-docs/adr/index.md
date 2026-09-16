@@ -22,3 +22,13 @@ File: 87ecd598db2d116a-roborazzi-screenshot-test.md
 Summary: Roborazzi 스크린샷 테스트 채택
 Related Files: build-logic/convention, core/designsystem/src/test, feature/browser/src/test
 Related Symbols: RoborazziConventionPlugin
+---
+File: 41ebb0749f7b1300-ui-values-in-resources.md
+Summary: UI 색상·문자열·치수 하드코딩 금지, 모듈별 리소스 파일로 정의
+Related Files: core/designsystem/src/main/res/values/colors.xml, core/designsystem/src/main/java/com/doggy/clip_manager/core/designsystem/theme/Theme.kt, feature/player/src/main/res/values, feature/browser/src/main/res/values
+Related Symbols: ClipTheme, EmptyState, PlayerScreenRoute, BrowserScreen
+---
+File: c3ff15cc5c14f11f-emulator-device-testing.md
+Summary: 기기 테스트는 1280x800 태블릿 AVD에서 수행
+Related Files: README.md
+Related Symbols: none

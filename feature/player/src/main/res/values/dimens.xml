@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="feature_player_title_padding_horizontal">16dp</dimen>
+    <dimen name="feature_player_title_padding_vertical">12dp</dimen>
+    <dimen name="feature_player_slider_padding_horizontal">16dp</dimen>
+    <dimen name="feature_player_controls_padding_start">8dp</dimen>
+    <dimen name="feature_player_controls_padding_end">16dp</dimen>
+    <dimen name="feature_player_controls_padding_bottom">8dp</dimen>
+</resources>

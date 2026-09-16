@@ -26,10 +26,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.doggy.clip_manager.core.designsystem.icon.ClipIcons
@@ -63,21 +63,27 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
         isPlaying = player.isPlaying()
     }
 
+    val backgroundColor = colorResource(R.color.feature_player_background)
+    val contentColor = colorResource(R.color.feature_player_content)
+
     ClipTheme(darkTheme = true) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(backgroundColor)
                 .statusBarsPadding()
                 .navigationBarsPadding(),
         ) {
             Text(
                 text = File(viewModel.path).name,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
+                color = contentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.padding(
+                    horizontal = dimensionResource(R.dimen.feature_player_title_padding_horizontal),
+                    vertical = dimensionResource(R.dimen.feature_player_title_padding_vertical),
+                ),
             )
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 if (viewModel.opened) {
@@ -102,7 +108,7 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
                         },
                     )
                 } else {
-                    Text(stringResource(R.string.feature_player_open_failed), color = Color.White)
+                    Text(stringResource(R.string.feature_player_open_failed), color = contentColor)
                 }
             }
 
@@ -130,34 +136,43 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = dimensionResource(R.dimen.feature_player_slider_padding_horizontal)),
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 8.dp, end = 16.dp, bottom = 8.dp),
+                    .padding(
+                        start = dimensionResource(R.dimen.feature_player_controls_padding_start),
+                        end = dimensionResource(R.dimen.feature_player_controls_padding_end),
+                        bottom = dimensionResource(R.dimen.feature_player_controls_padding_bottom),
+                    ),
             ) {
                 IconButton(onClick = togglePlayback, enabled = viewModel.opened) {
                     Icon(
                         imageVector = if (isPlaying) ClipIcons.Pause else ClipIcons.Play,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = contentColor,
                     )
                 }
                 Text(
-                    text = "${formatTime(sliderPositionMs.toLong())} / ${formatTime(durationMs)}",
+                    text = stringResource(
+                        R.string.feature_player_progress,
+                        formatTime(sliderPositionMs.toLong()),
+                        formatTime(durationMs),
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White,
+                    color = contentColor,
                 )
             }
         }
     }
 }
 
+@Composable
 private fun formatTime(ms: Long): String {
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
+    return stringResource(R.string.feature_player_time, minutes, seconds)
 }

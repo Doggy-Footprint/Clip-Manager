@@ -2,6 +2,7 @@ package com.doggy.clip_manager.core.designsystem.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -9,23 +10,59 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
+import com.doggy.clip_manager.core.designsystem.R
 
-private val LightColors = lightColorScheme(
-    primary = Teal40, onPrimary = Grey99, primaryContainer = Teal90, onPrimaryContainer = Teal10,
-    secondary = Amber40, onSecondary = Grey99, secondaryContainer = Amber90, onSecondaryContainer = Amber10,
-    error = Red40, onError = Grey99, errorContainer = Red90, onErrorContainer = Red10,
-    background = Grey99, onBackground = Grey10, surface = Grey99, onSurface = Grey10,
-    surfaceVariant = TealGrey90, onSurfaceVariant = TealGrey30, outline = TealGrey50,
-    inverseSurface = Grey20, inverseOnSurface = Grey95, inversePrimary = Teal80,
+@Composable
+private fun lightColors(): ColorScheme = lightColorScheme(
+    primary = colorResource(R.color.clip_teal_40),
+    onPrimary = colorResource(R.color.clip_grey_99),
+    primaryContainer = colorResource(R.color.clip_teal_90),
+    onPrimaryContainer = colorResource(R.color.clip_teal_10),
+    secondary = colorResource(R.color.clip_amber_40),
+    onSecondary = colorResource(R.color.clip_grey_99),
+    secondaryContainer = colorResource(R.color.clip_amber_90),
+    onSecondaryContainer = colorResource(R.color.clip_amber_10),
+    error = colorResource(R.color.clip_red_40),
+    onError = colorResource(R.color.clip_grey_99),
+    errorContainer = colorResource(R.color.clip_red_90),
+    onErrorContainer = colorResource(R.color.clip_red_10),
+    background = colorResource(R.color.clip_grey_99),
+    onBackground = colorResource(R.color.clip_grey_10),
+    surface = colorResource(R.color.clip_grey_99),
+    onSurface = colorResource(R.color.clip_grey_10),
+    surfaceVariant = colorResource(R.color.clip_teal_grey_90),
+    onSurfaceVariant = colorResource(R.color.clip_teal_grey_30),
+    outline = colorResource(R.color.clip_teal_grey_50),
+    inverseSurface = colorResource(R.color.clip_grey_20),
+    inverseOnSurface = colorResource(R.color.clip_grey_95),
+    inversePrimary = colorResource(R.color.clip_teal_80),
 )
 
-private val DarkColors = darkColorScheme(
-    primary = Teal80, onPrimary = Teal20, primaryContainer = Teal30, onPrimaryContainer = Teal90,
-    secondary = Amber80, onSecondary = Amber20, secondaryContainer = Amber30, onSecondaryContainer = Amber90,
-    error = Red80, onError = Red20, errorContainer = Red30, onErrorContainer = Red90,
-    background = Grey10, onBackground = Grey90, surface = Grey10, onSurface = Grey90,
-    surfaceVariant = TealGrey30, onSurfaceVariant = TealGrey80, outline = TealGrey60,
-    inverseSurface = Grey90, inverseOnSurface = Grey10, inversePrimary = Teal40,
+@Composable
+private fun darkColors(): ColorScheme = darkColorScheme(
+    primary = colorResource(R.color.clip_teal_80),
+    onPrimary = colorResource(R.color.clip_teal_20),
+    primaryContainer = colorResource(R.color.clip_teal_30),
+    onPrimaryContainer = colorResource(R.color.clip_teal_90),
+    secondary = colorResource(R.color.clip_amber_80),
+    onSecondary = colorResource(R.color.clip_amber_20),
+    secondaryContainer = colorResource(R.color.clip_amber_30),
+    onSecondaryContainer = colorResource(R.color.clip_amber_90),
+    error = colorResource(R.color.clip_red_80),
+    onError = colorResource(R.color.clip_red_20),
+    errorContainer = colorResource(R.color.clip_red_30),
+    onErrorContainer = colorResource(R.color.clip_red_90),
+    background = colorResource(R.color.clip_grey_10),
+    onBackground = colorResource(R.color.clip_grey_90),
+    surface = colorResource(R.color.clip_grey_10),
+    onSurface = colorResource(R.color.clip_grey_90),
+    surfaceVariant = colorResource(R.color.clip_teal_grey_30),
+    onSurfaceVariant = colorResource(R.color.clip_teal_grey_80),
+    outline = colorResource(R.color.clip_teal_grey_60),
+    inverseSurface = colorResource(R.color.clip_grey_90),
+    inverseOnSurface = colorResource(R.color.clip_grey_10),
+    inversePrimary = colorResource(R.color.clip_teal_40),
 )
 
 @Composable
@@ -39,8 +76,8 @@ fun ClipTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColors
-        else -> LightColors
+        darkTheme -> darkColors()
+        else -> lightColors()
     }
     MaterialTheme(colorScheme = colorScheme, content = content)
 }

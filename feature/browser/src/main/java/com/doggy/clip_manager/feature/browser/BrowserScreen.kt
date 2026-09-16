@@ -19,8 +19,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.doggy.clip_manager.core.designsystem.component.ClipTopAppBar
@@ -91,7 +91,7 @@ internal fun BrowserScreen(
             else -> LazyColumn(Modifier.fillMaxSize()) {
                 items(success.entries, key = { it.file.absolutePath }) { entry ->
                     FileRow(entry = entry, onClick = { onEntryClick(entry) })
-                    HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
+                    HorizontalDivider(modifier = Modifier.padding(start = dimensionResource(R.dimen.feature_browser_divider_inset)))
                 }
             }
         }

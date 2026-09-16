@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="clip_teal_10">#FF002020</color>
+    <color name="clip_teal_20">#FF003737</color>
+    <color name="clip_teal_30">#FF004F4F</color>
+    <color name="clip_teal_40">#FF006A6A</color>
+    <color name="clip_teal_80">#FF4CDADA</color>
+    <color name="clip_teal_90">#FF6FF7F6</color>
+    <color name="clip_amber_10">#FF2A1800</color>
+    <color name="clip_amber_20">#FF462A00</color>
+    <color name="clip_amber_30">#FF653E00</color>
+    <color name="clip_amber_40">#FF855400</color>
+    <color name="clip_amber_80">#FFFFB951</color>
+    <color name="clip_amber_90">#FFFFDDB3</color>
+    <color name="clip_grey_10">#FF191C1C</color>
+    <color name="clip_grey_20">#FF2D3131</color>
+    <color name="clip_grey_90">#FFE0E3E2</color>
+    <color name="clip_grey_95">#FFEFF1F0</color>
+    <color name="clip_grey_99">#FFFAFDFC</color>
+    <color name="clip_teal_grey_30">#FF3F4948</color>
+    <color name="clip_teal_grey_50">#FF6F7979</color>
+    <color name="clip_teal_grey_60">#FF889392</color>
+    <color name="clip_teal_grey_80">#FFBEC9C8</color>
+    <color name="clip_teal_grey_90">#FFDAE5E4</color>
+    <color name="clip_red_10">#FF410002</color>
+    <color name="clip_red_20">#FF690005</color>
+    <color name="clip_red_30">#FF93000A</color>
+    <color name="clip_red_40">#FFBA1A1A</color>
+    <color name="clip_red_80">#FFFFB4AB</color>
+    <color name="clip_red_90">#FFFFDAD6</color>
+</resources>

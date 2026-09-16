@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="clip_empty_state_padding">32dp</dimen>
+    <dimen name="clip_empty_state_spacing">12dp</dimen>
+    <dimen name="clip_empty_state_icon_size">64dp</dimen>
+</resources>
