@@ -88,24 +88,89 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
     }
 
     LaunchedEffect(controlsVisible, isPlaying, isDragging, interactionCount) {
-        if (controlsVisible && isPlaying && !isDragging) {
+        if (shouldAutoHide(controlsVisible, isPlaying, isDragging)) {
             delay(CONTROLS_AUTO_HIDE_MS)
             controlsVisible = false
         }
     }
 
-    val togglePlayback: () -> Unit = {
-        if (player.isPlaying()) player.pause() else player.play()
-        isPlaying = player.isPlaying()
-        interactionCount++
-    }
-    val skipBy: (Long) -> Unit = { deltaMs ->
-        val target = (player.positionMs() + deltaMs).coerceIn(0L, durationMs)
-        player.seekTo(target, SeekMode.KEYFRAME)
-        sliderPositionMs = target.toFloat()
-        interactionCount++
-    }
+    val uiState = PlayerUiState(
+        title = File(viewModel.path).name,
+        opened = viewModel.opened,
+        videoAspectRatio = viewModel.videoAspectRatio,
+        positionMs = sliderPositionMs.toLong(),
+        durationMs = durationMs,
+        isPlaying = isPlaying,
+        controlsVisible = controlsVisible,
+    )
 
+    PlayerScreen(
+        uiState = uiState,
+        onToggleControls = { controlsVisible = !controlsVisible },
+        onTogglePlayback = {
+            if (player.isPlaying()) player.pause() else player.play()
+            isPlaying = player.isPlaying()
+            interactionCount++
+        },
+        onSkip = { deltaMs ->
+            val target = skipTargetMs(player.positionMs(), deltaMs, durationMs)
+            player.seekTo(target, SeekMode.KEYFRAME)
+            sliderPositionMs = target.toFloat()
+            interactionCount++
+        },
+        onSeekChange = { positionMs ->
+            if (!isDragging) {
+                isDragging = true
+                wasPlayingBeforeDrag = player.isPlaying()
+                player.pause()
+                scrubThrottle.onDragStart()
+            }
+            sliderPositionMs = positionMs
+            val throttled = scrubThrottle.onDrag(positionMs.toLong())
+            if (throttled != null) {
+                player.seekTo(throttled, SeekMode.SCRUB)
+            }
+        },
+        onSeekFinished = {
+            scrubThrottle.onDragEnd()
+            isDragging = false
+            if (wasPlayingBeforeDrag) player.play()
+            interactionCount++
+        },
+        videoContent = { modifier ->
+            AndroidView(
+                modifier = modifier,
+                factory = { context ->
+                    SurfaceView(context).apply {
+                        holder.addCallback(object : SurfaceHolder.Callback {
+                            override fun surfaceCreated(holder: SurfaceHolder) {
+                                player.setSurface(holder.surface)
+                            }
+
+                            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+
+                            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                                player.setSurface(null)
+                            }
+                        })
+                    }
+                },
+            )
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun PlayerScreen(
+    uiState: PlayerUiState,
+    onToggleControls: () -> Unit,
+    onTogglePlayback: () -> Unit,
+    onSkip: (deltaMs: Long) -> Unit,
+    onSeekChange: (positionMs: Float) -> Unit,
+    onSeekFinished: () -> Unit,
+    videoContent: @Composable (Modifier) -> Unit,
+) {
     val backgroundColor = colorResource(R.color.feature_player_background)
     val contentColor = colorResource(R.color.feature_player_content)
     val scrimColor = colorResource(R.color.feature_player_scrim)
@@ -123,45 +188,31 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                ) { controlsVisible = !controlsVisible },
+                ) { onToggleControls() },
             contentAlignment = Alignment.Center,
         ) {
-            val aspectRatio = viewModel.videoAspectRatio
             val controlSpacingRatio = ResourcesCompat.getFloat(
                 LocalContext.current.resources,
                 R.dimen.feature_player_control_spacing_ratio,
             )
             val controlSpacing = maxWidth * controlSpacingRatio
-            if (viewModel.opened) {
+            if (uiState.opened) {
+                val aspectRatio = uiState.videoAspectRatio
                 val videoModifier = if (aspectRatio != null) {
-                    Modifier.aspectRatio(aspectRatio, matchHeightConstraintsFirst = maxWidth / maxHeight > aspectRatio)
+                    Modifier.aspectRatio(
+                        aspectRatio,
+                        matchHeightConstraintsFirst = matchHeightFirst(maxWidth.value, maxHeight.value, aspectRatio),
+                    )
                 } else {
                     Modifier.fillMaxSize()
                 }
-                AndroidView(
-                    modifier = videoModifier,
-                    factory = { context ->
-                        SurfaceView(context).apply {
-                            holder.addCallback(object : SurfaceHolder.Callback {
-                                override fun surfaceCreated(holder: SurfaceHolder) {
-                                    player.setSurface(holder.surface)
-                                }
-
-                                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
-
-                                override fun surfaceDestroyed(holder: SurfaceHolder) {
-                                    player.setSurface(null)
-                                }
-                            })
-                        }
-                    },
-                )
+                videoContent(videoModifier)
             } else {
                 Text(stringResource(R.string.feature_player_open_failed), color = contentColor)
             }
 
             AnimatedVisibility(
-                visible = controlsVisible,
+                visible = uiState.controlsVisible,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier.fillMaxSize(),
@@ -179,7 +230,7 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
                             ),
                     ) {
                         Text(
-                            text = File(viewModel.path).name,
+                            text = uiState.title,
                             style = MaterialTheme.typography.titleMedium,
                             color = contentColor,
                             maxLines = 1,
@@ -212,42 +263,25 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
-                                text = formatTime(sliderPositionMs.toLong()),
+                                text = formatTime(uiState.positionMs),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = contentColor,
                             )
                             Spacer(Modifier.width(dimensionResource(R.dimen.feature_player_seek_time_spacing)))
-                            val valueMax = if (durationMs > 0) durationMs.toFloat() else 1f
+                            val valueMax = if (uiState.durationMs > 0) uiState.durationMs.toFloat() else 1f
                             val thumbSize = dimensionResource(R.dimen.feature_player_seek_thumb_size)
                             val trackHeight = dimensionResource(R.dimen.feature_player_seek_track_height)
                             Slider(
-                                value = sliderPositionMs,
+                                value = uiState.positionMs.toFloat(),
                                 valueRange = 0f..valueMax,
-                                enabled = viewModel.opened,
-                                onValueChange = { value ->
-                                    if (!isDragging) {
-                                        isDragging = true
-                                        wasPlayingBeforeDrag = player.isPlaying()
-                                        player.pause()
-                                        scrubThrottle.onDragStart()
-                                    }
-                                    sliderPositionMs = value
-                                    val throttled = scrubThrottle.onDrag(value.toLong())
-                                    if (throttled != null) {
-                                        player.seekTo(throttled, SeekMode.SCRUB)
-                                    }
-                                },
-                                onValueChangeFinished = {
-                                    scrubThrottle.onDragEnd()
-                                    isDragging = false
-                                    if (wasPlayingBeforeDrag) player.play()
-                                    interactionCount++
-                                },
+                                enabled = uiState.opened,
+                                onValueChange = onSeekChange,
+                                onValueChangeFinished = onSeekFinished,
                                 // The Slider's thumb slot is not vertically centered against a custom
                                 // track, so the knob is drawn from the track and the slot only reserves width.
                                 thumb = { Spacer(Modifier.size(thumbSize)) },
                                 track = {
-                                    val fraction = (sliderPositionMs / valueMax).coerceIn(0f, 1f)
+                                    val fraction = (uiState.positionMs / valueMax).coerceIn(0f, 1f)
                                     Canvas(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -264,7 +298,7 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
                             )
                             Spacer(Modifier.width(dimensionResource(R.dimen.feature_player_seek_time_spacing)))
                             Text(
-                                text = formatTime(durationMs),
+                                text = formatTime(uiState.durationMs),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = contentColor,
                             )
@@ -278,18 +312,18 @@ internal fun PlayerScreenRoute(viewModel: PlayerViewModel = hiltViewModel()) {
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             PlayerControlButton(ClipIcons.SkipPrevious, R.string.feature_player_previous, false, iconColors) {}
-                            PlayerControlButton(ClipIcons.Replay5, R.string.feature_player_rewind, viewModel.opened, iconColors) {
-                                skipBy(-SKIP_STEP_MS)
+                            PlayerControlButton(ClipIcons.Replay5, R.string.feature_player_rewind, uiState.opened, iconColors) {
+                                onSkip(-SKIP_STEP_MS)
                             }
                             PlayerControlButton(
-                                icon = if (isPlaying) ClipIcons.Pause else ClipIcons.Play,
-                                description = if (isPlaying) R.string.feature_player_pause else R.string.feature_player_play,
-                                enabled = viewModel.opened,
+                                icon = if (uiState.isPlaying) ClipIcons.Pause else ClipIcons.Play,
+                                description = if (uiState.isPlaying) R.string.feature_player_pause else R.string.feature_player_play,
+                                enabled = uiState.opened,
                                 colors = iconColors,
-                                onClick = togglePlayback,
+                                onClick = onTogglePlayback,
                             )
-                            PlayerControlButton(ClipIcons.Forward5, R.string.feature_player_forward, viewModel.opened, iconColors) {
-                                skipBy(SKIP_STEP_MS)
+                            PlayerControlButton(ClipIcons.Forward5, R.string.feature_player_forward, uiState.opened, iconColors) {
+                                onSkip(SKIP_STEP_MS)
                             }
                             PlayerControlButton(ClipIcons.SkipNext, R.string.feature_player_next, false, iconColors) {}
                         }
@@ -324,8 +358,10 @@ private fun PlayerControlButton(
 
 @Composable
 private fun formatTime(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return stringResource(R.string.feature_player_time, minutes, seconds)
+    val parts = playbackTimeParts(ms)
+    return if (parts.showHours) {
+        stringResource(R.string.feature_player_time_hours, parts.hours, parts.minutes, parts.seconds)
+    } else {
+        stringResource(R.string.feature_player_time, parts.minutes, parts.seconds)
+    }
 }
