@@ -1,5 +1,11 @@
 <resources>
     <string name="feature_player_open_failed">파일을 열 수 없습니다</string>
     <string name="feature_player_time">%1$d:%2$02d</string>
-    <string name="feature_player_progress">%1$s / %2$s</string>
+    <string name="feature_player_play">재생</string>
+    <string name="feature_player_pause">일시정지</string>
+    <string name="feature_player_rewind">5초 뒤로</string>
+    <string name="feature_player_forward">5초 앞으로</string>
+    <string name="feature_player_previous">이전 파일</string>
+    <string name="feature_player_next">다음 파일</string>
+    <string name="feature_player_quick_menu">퀵 메뉴</string>
 </resources>

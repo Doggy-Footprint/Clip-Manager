@@ -44,6 +44,12 @@ bool Player::open(const std::string &path) {
     AVStream *videoStream = fmt_->streams[videoStreamIndex_];
     videoTimeBase_ = videoStream->time_base;
     videoParams_ = videoStream->codecpar;
+    videoWidth_ = videoParams_->width;
+    videoHeight_ = videoParams_->height;
+    AVRational sar = av_guess_sample_aspect_ratio(fmt_, videoStream, nullptr);
+    if (sar.num > 0 && sar.den > 0 && sar.num != sar.den) {
+        videoWidth_ = static_cast<int>(av_rescale(videoWidth_, sar.num, sar.den));
+    }
     isMpegTs_ = fmt_->iformat && fmt_->iformat->name && std::strstr(fmt_->iformat->name, "mpegts");
     if (!mediaCodecMimeFor(videoParams_->codec_id) && !avcodec_find_decoder(videoParams_->codec_id)) {
         avformat_close_input(&fmt_);
@@ -181,6 +187,10 @@ void Player::seekTo(int64_t positionMs, int mode) {
 int64_t Player::positionMs() const { return opened_ ? positionMs_.load() : 0; }
 
 int64_t Player::durationMs() const { return opened_ ? durationMs_ : 0; }
+
+int Player::videoWidth() const { return opened_ ? videoWidth_ : 0; }
+
+int Player::videoHeight() const { return opened_ ? videoHeight_ : 0; }
 
 void Player::recordVideoPacket(const AVPacket *packet) {
     if (!(packet->flags & AV_PKT_FLAG_KEY) || packet->pos < 0) return;

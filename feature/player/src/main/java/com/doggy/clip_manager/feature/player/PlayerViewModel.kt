@@ -14,6 +14,11 @@ class PlayerViewModel @Inject constructor(savedStateHandle: SavedStateHandle) : 
     val player = NativePlayer()
     val opened: Boolean = player.open(path)
     val durationMs: Long = if (opened) player.durationMs() else 0L
+    val videoAspectRatio: Float? = if (opened && player.videoWidth() > 0 && player.videoHeight() > 0) {
+        player.videoWidth().toFloat() / player.videoHeight()
+    } else {
+        null
+    }
 
     init {
         if (opened) player.play()

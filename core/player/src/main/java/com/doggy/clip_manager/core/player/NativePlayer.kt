@@ -34,6 +34,10 @@ class NativePlayer {
 
     fun durationMs(): Long = if (handle != 0L) nativeDurationMs(handle) else 0L
 
+    fun videoWidth(): Int = if (handle != 0L) nativeVideoWidth(handle) else 0
+
+    fun videoHeight(): Int = if (handle != 0L) nativeVideoHeight(handle) else 0
+
     fun release() {
         if (handle != 0L) {
             nativeRelease(handle)
@@ -49,6 +53,8 @@ class NativePlayer {
     private external fun nativeSeekTo(handle: Long, positionMs: Long, mode: Int)
     private external fun nativePositionMs(handle: Long): Long
     private external fun nativeDurationMs(handle: Long): Long
+    private external fun nativeVideoWidth(handle: Long): Int
+    private external fun nativeVideoHeight(handle: Long): Int
     private external fun nativeRelease(handle: Long)
 
     companion object {

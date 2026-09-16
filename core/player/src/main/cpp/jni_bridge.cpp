@@ -61,6 +61,16 @@ Java_com_doggy_clip_1manager_core_player_NativePlayer_nativeDurationMs(JNIEnv *,
     return reinterpret_cast<clip::Player *>(handle)->durationMs();
 }
 
+JNIEXPORT jint JNICALL
+Java_com_doggy_clip_1manager_core_player_NativePlayer_nativeVideoWidth(JNIEnv *, jobject, jlong handle) {
+    return reinterpret_cast<clip::Player *>(handle)->videoWidth();
+}
+
+JNIEXPORT jint JNICALL
+Java_com_doggy_clip_1manager_core_player_NativePlayer_nativeVideoHeight(JNIEnv *, jobject, jlong handle) {
+    return reinterpret_cast<clip::Player *>(handle)->videoHeight();
+}
+
 JNIEXPORT void JNICALL
 Java_com_doggy_clip_1manager_core_player_NativePlayer_nativeRelease(JNIEnv *, jobject, jlong handle) {
     delete reinterpret_cast<clip::Player *>(handle);

@@ -41,6 +41,8 @@ public:
     void seekTo(int64_t positionMs, int mode);
     int64_t positionMs() const;
     int64_t durationMs() const;
+    int videoWidth() const;
+    int videoHeight() const;
     void release();
 
 private:
@@ -85,6 +87,8 @@ private:
     std::atomic<bool> flushAudioDecoder_{false};
     std::atomic<int64_t> positionMs_{0};
     int64_t durationMs_ = 0;
+    int videoWidth_ = 0;
+    int videoHeight_ = 0;
     std::chrono::steady_clock::time_point seekStart_{};
 
     std::thread demuxThread_;
