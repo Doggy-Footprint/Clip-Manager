@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -19,7 +21,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            // Prebuilt FFmpeg libs are extracted only for these ABIs (scripts/extract-ffmpeg.sh).
+            // Prebuilt FFmpeg libs in src/main/jniLibs exist only for these ABIs.
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
         externalNativeBuild {
@@ -37,7 +39,7 @@ android {
 
     packaging {
         jniLibs {
-            // jniLibs/ carries the aar's libc++_shared.so, which collides with the NDK copy.
+            // jniLibs/ carries ffmpeg-kit's libc++_shared.so, which collides with the NDK copy.
             pickFirsts += "**/libc++_shared.so"
         }
     }
@@ -46,8 +48,26 @@ android {
         compose = true
     }
 
+    val keystoreProps = rootProject.file("keystore.properties")
+        .takeIf { it.exists() }
+        ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
+
+    signingConfigs {
+        if (keystoreProps != null) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (keystoreProps != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             optimization {
                 enable = false
             }

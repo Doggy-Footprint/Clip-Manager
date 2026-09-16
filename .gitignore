@@ -5,10 +5,12 @@ agent-docs/contracts/.seed/
 .harness/sessions/.running/
 .harness/**/__pycache__
 .DS_Store
-app/libs/ffmpeg-kit-full-gpl-6.0-2.LTS.aar
 app/src/main/jniLibs/
 app/src/main/cpp/include/
 .gradle/
 build/
 app/build/
 app/.cxx/
+keystore.properties
+*.jks
+*.keystore

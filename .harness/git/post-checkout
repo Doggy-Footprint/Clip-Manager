@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# `git worktree add` runs post-checkout with an all-zero previous HEAD, whichever tool creates
+# the worktree; gitignored build inputs (FFmpeg .so, keystore, .env) are copied in then.
+# Installed via core.hooksPath=.harness/git.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+if [ "${1:-}" = "0000000000000000000000000000000000000000" ] && [ -x "$repo_root/scripts/sync-worktree-files.sh" ]; then
+  "$repo_root/scripts/sync-worktree-files.sh" || echo "post-checkout: worktree file sync failed" >&2
+fi
+
+common_dir="$(git rev-parse --git-common-dir)"
+local_hook="$common_dir/hooks/post-checkout"
+if [ -x "$local_hook" ]; then
+  exec "$local_hook" "$@"
+fi

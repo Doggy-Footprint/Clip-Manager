@@ -1,0 +1,8 @@
+# Gitignored files every worktree needs. Copied from the main worktree on `git worktree add`
+# by .harness/git/post-checkout (any tool) and natively by Claude Code worktrees.
+# One path per line, relative to the repo root; directories are copied recursively.
+app/src/main/jniLibs/
+app/src/main/cpp/include/
+.env
+keystore.properties
+release.jks
