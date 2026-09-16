@@ -53,6 +53,45 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
   - `seek executed ... prepare_ms`: seek 실행, keyframe 탐색에 걸린 시간
   - `first frame after seek latency_ms`: 요청부터 첫 디코딩 프레임까지 걸린 시간
 
+## 기기 테스트용 에뮬레이터
+
+앱을 설치해서 확인할 때는 1280x800 태블릿 AVD를 씁니다(`agent-docs/adr/c3ff15cc5c14f11f-emulator-device-testing.md`).
+
+1. **cmdline-tools 설치** (`avdmanager`, `sdkmanager`가 없을 때)
+
+   Android Studio의 SDK Manager → SDK Tools에서 "Android SDK Command-line Tools"를 설치합니다.
+
+2. **system image 받기**
+
+   Apple Silicon Mac은 `arm64-v8a`, Intel Mac은 `x86_64` 이미지를 받습니다.
+
+   ```bash
+   SDK=~/Library/Android/sdk
+   $SDK/cmdline-tools/latest/bin/sdkmanager "emulator" "system-images;android-35;google_apis;arm64-v8a"
+   ```
+
+3. **AVD 만들기**
+
+   ```bash
+   echo no | $SDK/cmdline-tools/latest/bin/avdmanager create avd \
+     -n clip_tablet_1280x800 -k "system-images;android-35;google_apis;arm64-v8a" -d pixel_c
+   C=~/.android/avd/clip_tablet_1280x800.avd/config.ini
+   sed -i '' -E 's/^hw.lcd.width=.*/hw.lcd.width=1280/; s/^hw.lcd.height=.*/hw.lcd.height=800/; s/^hw.lcd.density=.*/hw.lcd.density=160/; s/^hw.initialOrientation=.*/hw.initialOrientation=landscape/' $C
+   ```
+
+4. **실행과 준비**
+
+   ```bash
+   $SDK/emulator/emulator -avd clip_tablet_1280x800 &
+   adb -s emulator-5554 wait-for-device
+   ./gradlew :app:installDebug
+   adb -s emulator-5554 shell appops set com.doggy.clip_manager MANAGE_EXTERNAL_STORAGE allow   # 설정 화면 대신 권한 부여
+   ```
+
+   테스트 영상은 [실기기 seek 측정](#실기기-seek-측정)의 방법으로 만들어 `adb push`로 넣습니다.
+
+에뮬레이터의 MediaCodec 디코더(`c2.goldfish.*`)는 물리 기기와 동작이 다릅니다. seek latency 수치는 물리 기기에서 측정하세요.
+
 ## 릴리스 빌드
 
 리포지토리 루트에 `keystore.properties`를 두면 릴리스 APK에 서명합니다. 이 파일은 gitignore되어 있습니다.
