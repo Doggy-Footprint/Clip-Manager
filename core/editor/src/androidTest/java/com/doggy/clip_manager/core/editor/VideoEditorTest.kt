@@ -1,6 +1,7 @@
 package com.doggy.clip_manager.core.editor
 
 import android.content.Context
+import android.graphics.Color
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -445,18 +446,20 @@ class VideoEditorTest {
         assertTrue(store.puts.isEmpty())
     }
 
-    // --- I3: hasEffects=true forces PRECISE even when FAST was requested (per C11's decision table,
+    // --- I3: a non-empty effect set forces PRECISE even when FAST was requested (per C11's decision table,
     //         but observed here at the VideoEditor level, not just EditPlanner.effectiveCutMode). ----
 
     @Test
-    fun start_I3_normal_fastRequestWithEffectsIsProcessedAsPrecise() {
+    fun start_C11_edge_fastRequestWithValidEffectIsProcessedAsPrecise() {
         val input = copyFixture(FixtureAssets.FIXTURE_A)
         val editor = newEditor()
         val spec = EditSpec(
             inputPath = input.absolutePath,
             keepRanges = listOf(TimeRange(1_500_000, 3 * SEC)),
             cutMode = CutMode.FAST,
-            hasEffects = true,
+            effects = EditEffects(
+                flips = listOf(FlipRange(TimeRange(0, SEC), horizontal = true, vertical = false)),
+            ),
         )
 
         val job = editor.start(spec)
@@ -465,13 +468,32 @@ class VideoEditorTest {
         val completed = states.last() as EditState.Completed
         val output = File(completed.outputPath)
         val durationUs = containerDurationUs(output.absolutePath)
-        // If hasEffects correctly forces PRECISE, the range is used as-is (no keyframe snap):
-        // (3s - 1.5s) = 1.5s. A FAST-mode bug that ignores hasEffects would instead snap the
+        // If effects correctly force PRECISE, the range is used as-is (no keyframe snap):
+        // (3s - 1.5s) = 1.5s. A FAST-mode bug that ignores effects would instead snap the
         // start to the 1s keyframe, producing a 2s output.
         assertTrue(
             "expected ~1.5s (PRECISE, no snap), got ${durationUs}us",
             kotlin.math.abs(durationUs - 1_500_000L) <= FRAME_TOLERANCE_US,
         )
+    }
+
+    @Test
+    fun start_C7_error_invalidEffectThrowsSynchronouslyWithoutChangingJobsCurrentOrFiles() {
+        val input = copyFixture(FixtureAssets.FIXTURE_A)
+        val currentBefore = EditJobs.current.value
+        val entriesBefore = snapshotFiles(workDir)
+        val editor = newEditor()
+        val spec = EditSpec(
+            inputPath = input.absolutePath,
+            keepRanges = listOf(TimeRange(0, SEC)),
+            cutMode = CutMode.PRECISE,
+            effects = EditEffects(speeds = listOf(SpeedRange(TimeRange(0, SEC), 1.1f))),
+        )
+
+        org.junit.Assert.assertThrows(InvalidEffectException::class.java) { editor.start(spec) }
+
+        assertEquals(currentBefore, EditJobs.current.value)
+        assertEquals(entriesBefore, snapshotFiles(workDir))
     }
 
     // --- I7: Running.slowState must reflect the SlowDetector's actual verdict, not a constant. ------
@@ -503,5 +525,233 @@ class VideoEditorTest {
             runningStates.any { it.slowState == SlowState.SLOWER_THAN_EXPECTED },
         )
         assertTrue(states.last() is EditState.Completed)
+    }
+
+    @Test
+    fun start_C2_normal_cropSquareUsesExactNearestEvenDimensions() {
+        assertFrameLayout(FrameMode.CROP, 480 to 480, expectedTopLeft = Color.RED)
+    }
+
+    @Test
+    fun start_C2_normal_stretchSquareUsesExactNearestEvenDimensions() {
+        assertFrameLayout(FrameMode.STRETCH, 480 to 480, expectedTopLeft = Color.RED)
+    }
+
+    @Test
+    fun start_C2_normal_fitSquareUsesBlackBarsAndExactNearestEvenDimensions() {
+        assertFrameLayout(FrameMode.FIT, 480 to 480, expectedTopLeft = Color.BLACK)
+    }
+
+    @Test
+    fun start_C13_boundary_oddRatioUsesNearestAreaPermittedEvenMultiplier() {
+        val input = copyFixture(FixtureAssets.FIXTURE_A)
+        val editor = newEditor()
+        val job = editor.start(
+            EditSpec(
+                inputPath = input.absolutePath,
+                keepRanges = listOf(TimeRange(0, SEC)),
+                cutMode = CutMode.PRECISE,
+                effects = EditEffects(frameLayout = FrameLayout.Ratio(3, 4, FrameMode.CROP)),
+            ),
+        )
+
+        val output = File((awaitStates(job).last() as EditState.Completed).outputPath)
+        // Source area is 640*360=230400. For exact 3:4 with even dimensions, m must be even.
+        // m=138 gives 414*552=228528 (difference 1872); m=140 gives 420*560=235200 (difference 4800).
+        assertEquals(414 to 552, frameSizeAt(output.absolutePath, 500_000))
+    }
+
+    @Test
+    fun start_C3_normal_horizontalFlipMovesRightPixelsToLeftOnly() {
+        val output = renderEffects(
+            EditEffects(flips = listOf(FlipRange(TimeRange(0, 10 * SEC), horizontal = true, vertical = false))),
+        )
+
+        assertColorClose(Color.rgb(0, 128, 0), framePixelAt(output.absolutePath, 500_000, 80, 80))
+    }
+
+    @Test
+    fun start_C3_normal_verticalFlipMovesBottomPixelsToTopOnly() {
+        val output = renderEffects(
+            EditEffects(flips = listOf(FlipRange(TimeRange(0, 10 * SEC), horizontal = false, vertical = true))),
+        )
+
+        assertColorClose(Color.BLUE, framePixelAt(output.absolutePath, 500_000, 80, 80))
+    }
+
+    @Test
+    fun start_C3_normal_bothAxisFlipMovesDiagonalPixelsToLeftTop() {
+        val output = renderEffects(
+            EditEffects(flips = listOf(FlipRange(TimeRange(0, 10 * SEC), horizontal = true, vertical = true))),
+        )
+
+        assertColorClose(Color.YELLOW, framePixelAt(output.absolutePath, 500_000, 80, 80))
+    }
+
+    @Test
+    fun start_C8_edge_sameAxisOverlapCancelsWhileDifferentAxisComposes() {
+        val output = renderEffects(
+            EditEffects(
+                flips = listOf(
+                    FlipRange(TimeRange(0, 10 * SEC), horizontal = true, vertical = false),
+                    FlipRange(TimeRange(2 * SEC, 8 * SEC), horizontal = true, vertical = false),
+                    FlipRange(TimeRange(2 * SEC, 8 * SEC), horizontal = false, vertical = true),
+                ),
+            ),
+        )
+
+        assertColorClose(Color.rgb(0, 128, 0), framePixelAt(output.absolutePath, 1 * SEC, 80, 80))
+        assertColorClose(Color.BLUE, framePixelAt(output.absolutePath, 4 * SEC, 80, 80))
+    }
+
+    @Test
+    fun start_C4_normal_disjointSpeedRangesChangeDurationBySegmentFloorSum() {
+        val input = copyFixture(FixtureAssets.FIXTURE_A)
+        val editor = newEditor()
+        val job = editor.start(
+            EditSpec(
+                inputPath = input.absolutePath,
+                keepRanges = listOf(TimeRange(0, 10 * SEC)),
+                cutMode = CutMode.PRECISE,
+                effects = EditEffects(
+                    speeds = listOf(
+                        SpeedRange(TimeRange(0, 2 * SEC), 0.5f),
+                        SpeedRange(TimeRange(2 * SEC, 4 * SEC), 2f),
+                    ),
+                ),
+            ),
+        )
+
+        val output = File((awaitStates(job).last() as EditState.Completed).outputPath)
+        // floor(2s / 0.5) + floor(2s / 2.0) + floor(6s / 1.0) = 11s.
+        assertTrue(kotlin.math.abs(containerDurationUs(output.absolutePath) - 11 * SEC) <= FRAME_TOLERANCE_US)
+    }
+
+    @Test
+    fun start_C5_normal_speedEffectPreservesOneKilohertzPitchAndAudioVideoAlignment() {
+        val input = copyFixture(FixtureAssets.FIXTURE_EFFECTS)
+        val editor = newEditor()
+        val job = editor.start(
+            EditSpec(
+                inputPath = input.absolutePath,
+                keepRanges = listOf(TimeRange(0, 2 * SEC)),
+                cutMode = CutMode.PRECISE,
+                effects = EditEffects(speeds = listOf(SpeedRange(TimeRange(0, 2 * SEC), 0.5f))),
+            ),
+        )
+
+        val output = File((awaitStates(job).last() as EditState.Completed).outputPath)
+        val frequencyHz = dominantAudioFrequencyHz(output.absolutePath)
+        assertTrue("expected 1kHz pitch, got $frequencyHz Hz", frequencyHz in 980.0..1020.0)
+        assertTrue(kotlin.math.abs(audioTrackDurationUs(output.absolutePath)!! - containerDurationUs(output.absolutePath)) <= 100_000)
+    }
+
+    @Test
+    fun start_C10_edge_speedOnSilentInputChangesVideoDurationAndKeepsNoAudioTrack() {
+        val input = copyFixture(FixtureAssets.FIXTURE_EFFECTS_SILENT)
+        val editor = newEditor()
+        val job = editor.start(
+            EditSpec(
+                inputPath = input.absolutePath,
+                keepRanges = listOf(TimeRange(0, 2 * SEC)),
+                cutMode = CutMode.PRECISE,
+                effects = EditEffects(speeds = listOf(SpeedRange(TimeRange(0, 2 * SEC), 0.5f))),
+            ),
+        )
+
+        val output = File((awaitStates(job).last() as EditState.Completed).outputPath)
+        assertTrue(kotlin.math.abs(containerDurationUs(output.absolutePath) - 4 * SEC) <= FRAME_TOLERANCE_US)
+        assertEquals(false, hasAudioTrack(output.absolutePath))
+    }
+
+    @Test
+    fun start_C9_edge_effectOnlyInDeletedTimeLeavesOutputUnchangedButForcesPrecise() {
+        val input = copyFixture(FixtureAssets.FIXTURE_A)
+        val editor = newEditor()
+        val job = editor.start(
+            EditSpec(
+                inputPath = input.absolutePath,
+                keepRanges = listOf(TimeRange(1_500_000, 3 * SEC)),
+                cutMode = CutMode.FAST,
+                effects = EditEffects(
+                    flips = listOf(FlipRange(TimeRange(0, SEC), horizontal = true, vertical = false)),
+                ),
+            ),
+        )
+
+        val output = File((awaitStates(job).last() as EditState.Completed).outputPath)
+        assertTrue(kotlin.math.abs(containerDurationUs(output.absolutePath) - 1_500_000L) <= FRAME_TOLERANCE_US)
+        assertColorClose(FixtureAssets.SEGMENT_COLORS[1], frameColorAt(output.absolutePath, 0))
+    }
+
+    @Test
+    fun start_C6_boundary_cropCentersAtZeroAndOneKeepCropInsideSource() {
+        val atZero = renderEffects(
+            EditEffects(frameLayout = FrameLayout.Ratio(1, 1, FrameMode.CROP, NormalizedPoint(0f, 0.5f))),
+        )
+        val atOne = renderEffects(
+            EditEffects(frameLayout = FrameLayout.Ratio(1, 1, FrameMode.CROP, NormalizedPoint(1f, 0.5f))),
+        )
+
+        assertColorClose(Color.RED, framePixelAt(atZero.absolutePath, 500_000, 80, 80))
+        assertColorClose(Color.rgb(0, 128, 0), framePixelAt(atOne.absolutePath, 500_000, 80, 80))
+    }
+
+    @Test
+    fun start_C12_edge_concatStrategiesMatchResolutionDurationAndRepresentativePixel() {
+        val effects = EditEffects(
+            frameLayout = FrameLayout.Ratio(1, 1, FrameMode.FIT),
+            flips = listOf(FlipRange(TimeRange(0, 2 * SEC), horizontal = true, vertical = false)),
+            speeds = listOf(SpeedRange(TimeRange(0, 2 * SEC), 0.5f)),
+        )
+        val single = renderEffects(effects, ConcatStrategy.SINGLE_COMPOSITION, TimeRange(0, 2 * SEC))
+        val segment = renderEffects(effects, ConcatStrategy.SEGMENT_CONCAT, TimeRange(0, 2 * SEC))
+
+        assertEquals(frameSizeAt(single.absolutePath, 500_000), frameSizeAt(segment.absolutePath, 500_000))
+        assertEquals(containerDurationUs(single.absolutePath), containerDurationUs(segment.absolutePath))
+        assertColorClose(
+            framePixelAt(single.absolutePath, 500_000, 80, 160),
+            framePixelAt(segment.absolutePath, 500_000, 80, 160),
+        )
+        val singleFrequency = dominantAudioFrequencyHz(single.absolutePath)
+        val segmentFrequency = dominantAudioFrequencyHz(segment.absolutePath)
+        assertTrue("single-composition pitch was $singleFrequency Hz", singleFrequency in 980.0..1020.0)
+        assertTrue("segment-concat pitch was $segmentFrequency Hz", segmentFrequency in 980.0..1020.0)
+    }
+
+    private fun assertFrameLayout(mode: FrameMode, expectedSize: Pair<Int, Int>, expectedTopLeft: Int) {
+        val input = copyFixture(FixtureAssets.FIXTURE_A)
+        val editor = newEditor()
+        val job = editor.start(
+            EditSpec(
+                inputPath = input.absolutePath,
+                keepRanges = listOf(TimeRange(0, SEC)),
+                cutMode = CutMode.PRECISE,
+                effects = EditEffects(frameLayout = FrameLayout.Ratio(1, 1, mode)),
+            ),
+        )
+
+        val output = File((awaitStates(job).last() as EditState.Completed).outputPath)
+        assertEquals(expectedSize, frameSizeAt(output.absolutePath, 500_000))
+        assertColorClose(expectedTopLeft, framePixelAt(output.absolutePath, 500_000, 0, 0))
+    }
+
+    private fun renderEffects(
+        effects: EditEffects,
+        strategy: ConcatStrategy = ConcatStrategy.SINGLE_COMPOSITION,
+        keepRange: TimeRange = TimeRange(0, 10 * SEC),
+    ): File {
+        val input = copyFixture(FixtureAssets.FIXTURE_EFFECTS)
+        val editor = newEditor()
+        val job = editor.start(
+            EditSpec(
+                inputPath = input.absolutePath,
+                keepRanges = listOf(keepRange),
+                cutMode = CutMode.PRECISE,
+                concatStrategy = strategy,
+                effects = effects,
+            ),
+        )
+        return File((awaitStates(job).last() as EditState.Completed).outputPath)
     }
 }

@@ -134,10 +134,15 @@ class EditPlannerTest {
 
     @Test
     fun effectiveCutMode_C11_normal_effectsForcePreciseRegardlessOfRequest() {
-        assertEquals(CutMode.FAST, EditPlanner.effectiveCutMode(CutMode.FAST, hasEffects = false))
-        assertEquals(CutMode.PRECISE, EditPlanner.effectiveCutMode(CutMode.FAST, hasEffects = true))
-        assertEquals(CutMode.PRECISE, EditPlanner.effectiveCutMode(CutMode.PRECISE, hasEffects = false))
-        assertEquals(CutMode.PRECISE, EditPlanner.effectiveCutMode(CutMode.PRECISE, hasEffects = true))
+        assertEquals(CutMode.FAST, EditPlanner.effectiveCutMode(CutMode.FAST, EditEffects()))
+        assertEquals(
+            CutMode.PRECISE,
+            EditPlanner.effectiveCutMode(
+                CutMode.FAST,
+                EditEffects(flips = listOf(FlipRange(TimeRange(0, SEC), true, false))),
+            ),
+        )
+        assertEquals(CutMode.PRECISE, EditPlanner.effectiveCutMode(CutMode.PRECISE, EditEffects()))
     }
 
     @Test
@@ -172,8 +177,213 @@ class EditPlannerTest {
 
     @Test
     fun outputDurationUs_C15_normal_sumsRangeLengths() {
-        val result = EditPlanner.outputDurationUs(listOf(TimeRange(0, 2 * SEC), TimeRange(4 * SEC, 10 * SEC)))
+        val result = EditPlanner.outputDurationUs(
+            listOf(
+                EditSegment(TimeRange(0, 2 * SEC), 1f, false, false),
+                EditSegment(TimeRange(4 * SEC, 10 * SEC), 1f, false, false),
+            ),
+        )
 
         assertEquals(8_000_000L, result)
+    }
+
+    @Test
+    fun outputDurationUs_C4_boundary_nonIntegralSpeedQuotientFloorsRatherThanRounds() {
+        val result = EditPlanner.outputDurationUs(
+            listOf(EditSegment(TimeRange(0, 1_000_006), 1.25f, false, false)),
+        )
+
+        assertEquals(800_004L, result)
+    }
+
+    @Test
+    fun plan_C7_error_zeroRatioWidthThrowsInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(frameLayout = FrameLayout.Ratio(0, 1, FrameMode.CROP)),
+        )
+    }
+
+    @Test
+    fun plan_C7_error_negativeRatioHeightThrowsInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(frameLayout = FrameLayout.Ratio(1, -1, FrameMode.CROP)),
+        )
+    }
+
+    @Test
+    fun plan_C7_error_nanCropCoordinateThrowsInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(frameLayout = FrameLayout.Ratio(1, 1, FrameMode.CROP, NormalizedPoint(Float.NaN, 0.5f))),
+        )
+    }
+
+    @Test
+    fun plan_C7_error_cropCoordinatePastOneThrowsInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(frameLayout = FrameLayout.Ratio(1, 1, FrameMode.CROP, NormalizedPoint(0.5f, 1.01f))),
+        )
+    }
+
+    @Test
+    fun plan_C7_error_flipWithoutAxisThrowsInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(flips = listOf(FlipRange(TimeRange(0, SEC), horizontal = false, vertical = false))),
+        )
+    }
+
+    @Test
+    fun plan_C7_error_speedBelowAllowedRangeThrowsInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(speeds = listOf(SpeedRange(TimeRange(0, SEC), 0.49f))),
+        )
+    }
+
+    @Test
+    fun plan_C7_error_speedBetweenAllowedStepsThrowsInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(speeds = listOf(SpeedRange(TimeRange(0, SEC), 1.1f))),
+        )
+    }
+
+    @Test
+    fun plan_C7_error_nonFiniteSpeedThrowsInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(speeds = listOf(SpeedRange(TimeRange(0, SEC), Float.POSITIVE_INFINITY))),
+        )
+    }
+
+    @Test
+    fun plan_C7_error_zeroLengthEffectRangeThrowsInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(flips = listOf(FlipRange(TimeRange(SEC, SEC), horizontal = true, vertical = false))),
+        )
+    }
+
+    @Test
+    fun plan_C7_error_overlappingSpeedRangesThrowInvalidEffect() {
+        assertInvalidEffects(
+            EditEffects(
+                speeds = listOf(
+                    SpeedRange(TimeRange(0, 2 * SEC), 1.25f),
+                    SpeedRange(TimeRange(SEC, 3 * SEC), 0.75f),
+                ),
+            ),
+        )
+    }
+
+    private fun assertInvalidEffects(effects: EditEffects) {
+        assertThrows(InvalidEffectException::class.java) {
+            EditPlanner.plan(10 * SEC, listOf(TimeRange(0, 10 * SEC)), effects)
+        }
+    }
+
+    @Test
+    fun plan_C1_normal_originalLayoutWithoutIntervalsKeepsExistingRangesAtOneX() {
+        val result = EditPlanner.plan(10 * SEC, listOf(TimeRange(SEC, 3 * SEC)), EditEffects())
+
+        assertEquals(listOf(EditSegment(TimeRange(SEC, 3 * SEC), 1f, false, false)), result.segments)
+        assertEquals(OutputSize(640, 360), EditPlanner.outputSize(640, 360, FrameLayout.Original))
+        assertEquals(CutMode.FAST, EditPlanner.effectiveCutMode(CutMode.FAST, EditEffects()))
+    }
+
+    @Test
+    fun plan_C3_normal_bothAxisFlipMarksBothAxesOnItsIntersection() {
+        val result = EditPlanner.plan(
+            10 * SEC,
+            listOf(TimeRange(0, 4 * SEC)),
+            EditEffects(flips = listOf(FlipRange(TimeRange(SEC, 3 * SEC), true, true))),
+        )
+
+        assertEquals(
+            listOf(
+                EditSegment(TimeRange(0, SEC), 1f, false, false),
+                EditSegment(TimeRange(SEC, 3 * SEC), 1f, true, true),
+                EditSegment(TimeRange(3 * SEC, 4 * SEC), 1f, false, false),
+            ),
+            result.segments,
+        )
+    }
+
+    @Test
+    fun plan_C4_normal_disjointSpeedsSplitRangesAndLeaveOtherTimeAtOneX() {
+        val result = EditPlanner.plan(
+            10 * SEC,
+            listOf(TimeRange(0, 10 * SEC)),
+            EditEffects(speeds = listOf(SpeedRange(TimeRange(2 * SEC, 4 * SEC), 0.5f), SpeedRange(TimeRange(6 * SEC, 8 * SEC), 2f))),
+        )
+
+        assertEquals(
+            listOf(
+                EditSegment(TimeRange(0, 2 * SEC), 1f, false, false),
+                EditSegment(TimeRange(2 * SEC, 4 * SEC), 0.5f, false, false),
+                EditSegment(TimeRange(4 * SEC, 6 * SEC), 1f, false, false),
+                EditSegment(TimeRange(6 * SEC, 8 * SEC), 2f, false, false),
+                EditSegment(TimeRange(8 * SEC, 10 * SEC), 1f, false, false),
+            ),
+            result.segments,
+        )
+        assertEquals(11 * SEC, EditPlanner.outputDurationUs(result.segments))
+    }
+
+    @Test
+    fun plan_C6_boundary_effectEndingAtKeepStartHasNoNonEmptyIntersection() {
+        val result = EditPlanner.plan(
+            10 * SEC,
+            listOf(TimeRange(2 * SEC, 4 * SEC)),
+            EditEffects(flips = listOf(FlipRange(TimeRange(SEC, 2 * SEC), true, false))),
+        )
+
+        assertEquals(listOf(EditSegment(TimeRange(2 * SEC, 4 * SEC), 1f, false, false)), result.segments)
+    }
+
+    @Test
+    fun plan_C6_boundary_speedAtInputStartAndEndUsesAllowedEndpoints() {
+        val result = EditPlanner.plan(
+            10 * SEC,
+            listOf(TimeRange(0, 10 * SEC)),
+            EditEffects(speeds = listOf(SpeedRange(TimeRange(0, SEC), 0.5f), SpeedRange(TimeRange(9 * SEC, 10 * SEC), 2f))),
+        )
+
+        assertEquals(
+            listOf(
+                EditSegment(TimeRange(0, SEC), 0.5f, false, false),
+                EditSegment(TimeRange(SEC, 9 * SEC), 1f, false, false),
+                EditSegment(TimeRange(9 * SEC, 10 * SEC), 2f, false, false),
+            ),
+            result.segments,
+        )
+    }
+
+    @Test
+    fun plan_C8_edge_sameAxisFlipsCancelWhileDifferentAxisRemains() {
+        val result = EditPlanner.plan(
+            10 * SEC,
+            listOf(TimeRange(0, 4 * SEC)),
+            EditEffects(flips = listOf(FlipRange(TimeRange(0, 4 * SEC), true, false), FlipRange(TimeRange(SEC, 3 * SEC), true, true))),
+        )
+
+        assertEquals(
+            listOf(
+                EditSegment(TimeRange(0, SEC), 1f, true, false),
+                EditSegment(TimeRange(SEC, 3 * SEC), 1f, false, true),
+                EditSegment(TimeRange(3 * SEC, 4 * SEC), 1f, true, false),
+            ),
+            result.segments,
+        )
+    }
+
+    @Test
+    fun plan_C9_edge_effectOutsideKeptTimeLeavesSegmentsUnchangedButStillForcesPrecise() {
+        val effects = EditEffects(flips = listOf(FlipRange(TimeRange(0, SEC), true, false)))
+        val result = EditPlanner.plan(10 * SEC, listOf(TimeRange(2 * SEC, 4 * SEC)), effects)
+
+        assertEquals(listOf(EditSegment(TimeRange(2 * SEC, 4 * SEC), 1f, false, false)), result.segments)
+        assertEquals(CutMode.PRECISE, EditPlanner.effectiveCutMode(CutMode.FAST, effects))
+    }
+
+    @Test
+    fun outputSize_C6_boundary_cropCentersAtZeroAndOnePreserveExactSquareOutput() {
+        assertEquals(OutputSize(480, 480), EditPlanner.outputSize(640, 360, FrameLayout.Ratio(1, 1, FrameMode.CROP, NormalizedPoint(0f, 0f))))
+        assertEquals(OutputSize(480, 480), EditPlanner.outputSize(640, 360, FrameLayout.Ratio(1, 1, FrameMode.CROP, NormalizedPoint(1f, 1f))))
     }
 }
