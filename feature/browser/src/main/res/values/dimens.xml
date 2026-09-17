@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="feature_browser_divider_inset">72dp</dimen>
+    <dimen name="feature_browser_compact_cell_padding">8dp</dimen>
+    <dimen name="feature_browser_compact_icon_size">40dp</dimen>
 </resources>
