@@ -4,4 +4,5 @@
     <string name="feature_browser_permission_body">기기의 동영상과 폴더를 보려면 모든 파일 접근을 허용해 주세요.</string>
     <string name="feature_browser_permission_action">권한 허용</string>
     <string name="feature_browser_empty_title">빈 폴더입니다</string>
+    <string name="feature_browser_images_empty">이미지가 없습니다</string>
 </resources>

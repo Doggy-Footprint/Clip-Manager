@@ -4,4 +4,8 @@
     <color name="feature_player_content">#FFFFFFFF</color>
     <color name="feature_player_scrim">#8C000000</color>
     <color name="feature_player_seek_inactive">#66FFFFFF</color>
+    <color name="feature_player_overlay_bounds">#FFFFFFFF</color>
+    <color name="feature_player_overlay_handle">#FFFFFFFF</color>
+    <color name="feature_player_overlay_handle_glyph">#FF000000</color>
+    <color name="feature_player_overlay_alpha_track">#66FFFFFF</color>
 </resources>

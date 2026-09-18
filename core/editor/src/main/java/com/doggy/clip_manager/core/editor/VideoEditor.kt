@@ -84,6 +84,7 @@ class VideoEditor(
 
                     val segments = EditPlanner.plan(probe.durationUs, keepRanges, spec.effects).segments
                     val outputDurationUs = EditPlanner.outputDurationUs(segments)
+                    val overlays = EditPlanner.normalizeOutputOverlays(outputDurationUs, spec.effects.overlays)
                     val expectedMs = timeModel.expectedMs(effectiveMode, outputDurationUs, probe.width, probe.height)
                     val slowDetector = SlowDetector(expectedMs, startMs)
 
@@ -114,6 +115,7 @@ class VideoEditor(
                             spec.effects.frameLayout,
                             probe.width,
                             probe.height,
+                            overlays,
                             output.path,
                             tempDir,
                             spec.concatStrategy,

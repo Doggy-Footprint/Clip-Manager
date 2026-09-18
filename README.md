@@ -15,6 +15,27 @@ Android용 파일 탐색기와 비디오 뷰어입니다. FFmpeg 6.0 네이티�
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ```
 
+`JAVA_HOME`을 고쳐도 아래 오류가 계속 나올 수 있습니다.
+
+```
+Failed to transform core-for-system-modules.jar ...
+  > jlink executable /Users/.../.vscode/extensions/redhat.java-.../jre/.../bin/jlink does not exist
+```
+
+`gradle/gradle-daemon-jvm.properties`는 데몬 JVM 조건을 버전(21)으로만 지정하므로, Gradle이 호스트에서 찾은 아무 JDK 21이나 고를 수 있고 여기에 VS Code의 JRE가 포함됩니다. 한 번 그 JVM으로 뜬 데몬은 `JAVA_HOME`을 바꿔도 재사용되므로, 데몬을 먼저 내려야 합니다.
+
+```bash
+./gradlew --stop
+```
+
+매번 명시하려면 자동 탐색을 끄고 JBR만 지정하세요.
+
+```bash
+./gradlew <task> \
+  -Dorg.gradle.java.installations.auto-detect=false \
+  -Dorg.gradle.java.installations.paths="$JAVA_HOME"
+```
+
 ## git에 없는 파일 준비
 
 다음 파일은 커밋하지 않으므로 직접 준비해야 합니다.

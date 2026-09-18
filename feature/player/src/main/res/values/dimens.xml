@@ -9,4 +9,12 @@
     <item name="feature_player_control_spacing_ratio" format="float" type="dimen">0.044</item>
     <dimen name="feature_player_control_button_size">56dp</dimen>
     <dimen name="feature_player_control_icon_size">36dp</dimen>
+    <item name="feature_player_overlay_half_extent_ratio" format="float" type="dimen">0.2</item>
+    <dimen name="feature_player_overlay_handle_radius">12dp</dimen>
+    <dimen name="feature_player_overlay_handle_touch_radius">28dp</dimen>
+    <dimen name="feature_player_overlay_handle_glyph">6dp</dimen>
+    <dimen name="feature_player_overlay_stroke">2dp</dimen>
+    <dimen name="feature_player_overlay_alpha_bar_offset">36dp</dimen>
+    <dimen name="feature_player_overlay_alpha_bar_height">8dp</dimen>
+    <dimen name="feature_player_overlay_alpha_thumb_radius">10dp</dimen>
 </resources>

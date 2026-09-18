@@ -3,4 +3,6 @@
     <dimen name="feature_browser_divider_inset">72dp</dimen>
     <dimen name="feature_browser_compact_cell_padding">8dp</dimen>
     <dimen name="feature_browser_compact_icon_size">40dp</dimen>
+    <dimen name="feature_browser_image_cell_size">96dp</dimen>
+    <dimen name="feature_browser_image_cell_spacing">4dp</dimen>
 </resources>

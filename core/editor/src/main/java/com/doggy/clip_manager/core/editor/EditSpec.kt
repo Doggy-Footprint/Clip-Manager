@@ -26,9 +26,10 @@ data class EditEffects(
     val frameLayout: FrameLayout = FrameLayout.Original,
     val flips: List<FlipRange> = emptyList(),
     val speeds: List<SpeedRange> = emptyList(),
+    val overlays: List<OverlaySpec> = emptyList(),
 ) {
     val isPresent: Boolean
-        get() = frameLayout !is FrameLayout.Original || flips.isNotEmpty() || speeds.isNotEmpty()
+        get() = frameLayout !is FrameLayout.Original || flips.isNotEmpty() || speeds.isNotEmpty() || overlays.isNotEmpty()
 }
 
 enum class CutMode { FAST, PRECISE }

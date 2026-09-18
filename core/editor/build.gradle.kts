@@ -11,6 +11,7 @@ android {
 }
 
 dependencies {
+    api(projects.core.model)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.media3.transformer)
     implementation(libs.media3.effect)

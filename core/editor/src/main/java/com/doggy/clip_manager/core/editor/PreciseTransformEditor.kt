@@ -35,6 +35,7 @@ internal object PreciseTransformEditor {
         frameLayout: FrameLayout,
         sourceWidth: Int,
         sourceHeight: Int,
+        overlays: List<OverlaySpec>,
         outputPath: String,
         tempDir: File,
         strategy: ConcatStrategy,
@@ -42,7 +43,12 @@ internal object PreciseTransformEditor {
     ) {
         when (strategy) {
             ConcatStrategy.SINGLE_COMPOSITION -> {
-                export(context, buildComposition(inputPath, segments, frameLayout, sourceWidth, sourceHeight), outputPath, onProgress)
+                export(
+                    context,
+                    buildComposition(context, inputPath, segments, frameLayout, sourceWidth, sourceHeight, overlays, 0L),
+                    outputPath,
+                    onProgress,
+                )
             }
             ConcatStrategy.SEGMENT_CONCAT -> {
                 val totalOutUs = EditPlanner.outputDurationUs(segments).coerceAtLeast(1)
@@ -54,7 +60,7 @@ internal object PreciseTransformEditor {
                         val base = producedUs
                         export(
                             context,
-                            buildComposition(inputPath, listOf(segment), frameLayout, sourceWidth, sourceHeight),
+                            buildComposition(context, inputPath, listOf(segment), frameLayout, sourceWidth, sourceHeight, overlays, base),
                             segmentFiles[index].path,
                         ) { fraction ->
                             onProgress(((base + fraction * segmentUs) / totalOutUs.toFloat()).coerceIn(0f, 1f))
@@ -69,13 +75,23 @@ internal object PreciseTransformEditor {
         }
     }
 
+    /**
+     * [outputOffsetStartUs] is where [segments] begin on the output timeline. Overlay ranges are
+     * expressed on that timeline, so SEGMENT_CONCAT exports one segment at a time and must say
+     * where it sits; SINGLE_COMPOSITION starts at zero.
+     */
     private fun buildComposition(
+        context: Context,
         inputPath: String,
         segments: List<EditSegment>,
         frameLayout: FrameLayout,
         sourceWidth: Int,
         sourceHeight: Int,
+        overlays: List<OverlaySpec>,
+        outputOffsetStartUs: Long,
     ): Composition {
+        val overlayFactory = OverlayCompositionFactory(context)
+        var outputOffsetUs = outputOffsetStartUs
         val items = segments.map { segment ->
             val mediaItem = MediaItem.Builder()
                 .setUri(Uri.fromFile(File(inputPath)))
@@ -86,7 +102,16 @@ internal object PreciseTransformEditor {
                         .build(),
                 )
                 .build()
-            val videoEffects = buildVideoEffects(frameLayout, sourceWidth, sourceHeight, segment)
+            val segmentOutUs = ((segment.range.endUs - segment.range.startUs) / segment.speed).toLong()
+            val segmentStartUs = outputOffsetUs
+            val videoEffects = buildVideoEffects(frameLayout, sourceWidth, sourceHeight, segment) +
+                overlayFactory.create(
+                    overlays.mapNotNull { overlay ->
+                        val start = maxOf(0L, overlay.range.startUs - segmentStartUs)
+                        val end = minOf(segmentOutUs, overlay.range.endUs - segmentStartUs)
+                        if (start < end) overlay.withRange(TimeRange(start, end)) else null
+                    },
+                )
             val builder = EditedMediaItem.Builder(mediaItem)
                 .setEffects(Effects(emptyList(), videoEffects))
             if (segment.speed != 1f) {
@@ -101,6 +126,7 @@ internal object PreciseTransformEditor {
                     ),
                 )
             }
+            outputOffsetUs += segmentOutUs
             builder.build()
         }
         val sequence = EditedMediaItemSequence.Builder(items).build()

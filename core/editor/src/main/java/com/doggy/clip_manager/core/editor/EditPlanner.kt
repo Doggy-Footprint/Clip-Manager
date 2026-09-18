@@ -46,12 +46,37 @@ object EditPlanner {
                 throw InvalidEffectException("unsupported speed: ${speed.speed}")
             }
         }
+        validateOverlays(effects.overlays)
         if (durationUs != null) {
             val normalized = effects.speeds.mapNotNull { speed ->
                 intersect(speed.range, TimeRange(0, durationUs))?.let { it to speed.speed }
             }.sortedBy { it.first.startUs }
             normalized.zipWithNext().forEach { (left, right) ->
                 if (right.first.startUs < left.first.endUs) throw InvalidEffectException("speed ranges overlap")
+            }
+        }
+    }
+
+    fun normalizeOutputOverlays(outputDurationUs: Long, overlays: List<OverlaySpec>): List<OverlaySpec> {
+        validateOverlays(overlays)
+        return overlays.mapNotNull { overlay ->
+            val start = maxOf(0L, overlay.range.startUs)
+            val end = minOf(outputDurationUs, overlay.range.endUs)
+            if (start < end) overlay.withRange(TimeRange(start, end)) else null
+        }
+    }
+
+    internal fun validateOverlays(overlays: List<OverlaySpec>) {
+        val ids = HashSet<String>()
+        overlays.forEach { overlay ->
+            if (overlay.id.isBlank() || !ids.add(overlay.id)) throw InvalidEffectException("overlay id must be non-blank and unique")
+            if (overlay.range.startUs >= overlay.range.endUs) throw InvalidEffectException("invalid overlay range: ${overlay.range}")
+            when (overlay) {
+                is TextOverlay -> {
+                    if (overlay.text.isBlank()) throw InvalidEffectException("overlay text must not be blank")
+                    overlay.style.validate()
+                }
+                is ImageOverlay -> overlay.transform.validate()
             }
         }
     }
