@@ -1,6 +1,7 @@
 package com.doggy.clip_manager.core.editor
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.media.AudioFormat
 import android.media.MediaCodec
@@ -66,6 +67,18 @@ fun framePixelAt(path: String, timeUs: Long, x: Int, y: Int): Int {
         val bitmap = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST)
             ?: error("no frame at $timeUs for $path")
         return bitmap.getPixel(x, y)
+    } finally {
+        retriever.release()
+    }
+}
+
+/** A whole decoded frame, for assertions that must scan many pixels of one frame. */
+fun frameAt(path: String, timeUs: Long): Bitmap {
+    val retriever = MediaMetadataRetriever()
+    try {
+        retriever.setDataSource(path)
+        return retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST)
+            ?: error("no frame at $timeUs for $path")
     } finally {
         retriever.release()
     }

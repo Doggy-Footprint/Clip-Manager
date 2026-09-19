@@ -52,20 +52,16 @@ android {
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(projects.core.designsystem)
+    implementation(projects.core.editor)
     implementation(projects.core.ui)
     implementation(projects.feature.browser)
     implementation(projects.feature.player)
-
-    // Overlay debug harness (app/src/debug): these modules are otherwise behind `implementation`
-    // in the feature modules, so the debug screen cannot see their types without them.
-    debugImplementation(projects.core.data)
-    debugImplementation(projects.core.editor)
-    debugImplementation(projects.core.model)
-    debugImplementation(libs.media3.common)
+    implementation(libs.media3.common)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.serialization.json)
 }

@@ -38,3 +38,10 @@ File: 9c41d7f2a05e8b63-video-edit-phase3-closeout.md
 Summary: Phase 3 closed out: overlay Intent serialization for the service export path, two production overlay bugs fixed, instrumented render tests and a debug verification screen
 Related Files: core/editor/src/main/java/com/doggy/clip_manager/core/editor/EditService.kt, core/editor/src/main/java/com/doggy/clip_manager/core/editor/OverlayCompositionFactory.kt, core/editor/src/main/java/com/doggy/clip_manager/core/editor/OverlaySpec.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/OverlayPreviewPlayer.kt, app/src/debug/java/com/doggy/clip_manager/debug/OverlayDebugActivity.kt, core/editor/src/androidTest/java/com/doggy/clip_manager/core/editor/OverlayRenderTest.kt, core/editor/src/test/java/com/doggy/clip_manager/core/editor/EditServiceIntentTest.kt
 Related Symbols: EditService, OverlayCompositionFactory, OverlayEditSession, OverlayPreviewPlayer, OverlayDebugActivity, OverlayRenderTest, EditServiceIntentTest
+
+---
+File: 8d9c1d27e3005b7b-video-edit-phase4-minimal-tool-ui-complete.md
+Summary: Phase 4 minimal editor tool UI (trim, text/image overlays, always-on preview, export) completed and verified; drag-collapse and floating window deferred
+Related Files: feature/player/src/main/java/com/doggy/clip_manager/feature/player/EditorLogic.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/EditorViewModel.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/EditorPane.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/EditorToolPanel.kt, feature/browser/src/main/java/com/doggy/clip_manager/feature/browser/ImageGridRoute.kt, app/src/main/java/com/doggy/clip_manager/ui/ClipApp.kt, feature/player/src/test/java/com/doggy/clip_manager/feature/player/EditorLogicTest.kt, core/editor/src/androidTest/java/com/doggy/clip_manager/core/editor/OverlayRenderTest.kt
+Related Symbols: EditorViewModel, EditorPane, EditorToolPanel, toOutputOverlays, clampSelection, editorExportSpec, ImageGridRoute, ImageGridViewModel, ClipApp, PlayerPane, OverlayRenderTest
+

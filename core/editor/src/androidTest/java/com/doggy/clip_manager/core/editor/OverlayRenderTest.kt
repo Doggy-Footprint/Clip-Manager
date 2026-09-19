@@ -24,6 +24,12 @@ private const val PROBE_Y = 200
 private val BASELINE = Color.rgb(0xFF, 0xFF, 0x00)
 private val OVERLAY_COLOR = Color.rgb(0xFF, 0x00, 0xFF)
 
+// Far enough from the anchor line to clear encoder ringing at the box edge.
+private const val ANCHOR_PROBE_PX = 6
+
+private fun colorClose(expected: Int, actual: Int): Boolean =
+    runCatching { assertColorClose(expected, actual) }.isSuccess
+
 @RunWith(AndroidJUnit4::class)
 class OverlayRenderTest {
 
@@ -96,6 +102,67 @@ class OverlayRenderTest {
 
         val failure = output.last()
         if (failure !is EditState.Failed) throw AssertionError("expected a failed edit, got $failure")
+    }
+
+    /**
+     * Pins the text anchor: [TextOverlayStyle.positionX]/[TextOverlayStyle.positionY] place the
+     * overlay's own bottom-center against that point of the frame, so a centred overlay paints
+     * above the anchor line and never below it.
+     */
+    @Test
+    fun overlay_B12_normal_textIsAnchoredAboveItsPositionPoint() {
+        val output = render(
+            EditEffects(
+                overlays = listOf(
+                    TextOverlay(
+                        id = "t1",
+                        range = TimeRange(0, 10 * SEC),
+                        text = "AAAA",
+                        style = TextOverlayStyle(
+                            positionX = .5f,
+                            positionY = .5f,
+                            fontSizePt = 48f,
+                            backgroundArgb = OVERLAY_COLOR.toLong() and 0xffffffffL,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val frame = frameAt(output.absolutePath, 5 * SEC)
+        val centerX = frame.width / 2
+        val centerY = frame.height / 2
+        assertColorClose(OVERLAY_COLOR, frame.getPixel(centerX, centerY - ANCHOR_PROBE_PX))
+        if (colorClose(OVERLAY_COLOR, frame.getPixel(centerX, centerY + ANCHOR_PROBE_PX))) {
+            throw AssertionError("text painted below its anchor line")
+        }
+    }
+
+    /** Pins the font size: a larger [TextOverlayStyle.fontSizePt] must paint a taller box. */
+    @Test
+    fun overlay_B12_normal_fontSizeScalesTheRenderedTextHeight() {
+        val small = textBoxHeight(render(EditEffects(overlays = listOf(sizedText(24f)))))
+        val large = textBoxHeight(render(EditEffects(overlays = listOf(sizedText(72f)))))
+
+        if (large <= small) throw AssertionError("font size did not scale the text: small=$small large=$large")
+    }
+
+    private fun sizedText(fontSizePt: Float) = TextOverlay(
+        id = "t1",
+        range = TimeRange(0, 10 * SEC),
+        text = "AAAA",
+        style = TextOverlayStyle(
+            positionX = .5f,
+            positionY = .5f,
+            fontSizePt = fontSizePt,
+            backgroundArgb = OVERLAY_COLOR.toLong() and 0xffffffffL,
+        ),
+    )
+
+    private fun textBoxHeight(output: File): Int {
+        val frame = frameAt(output.absolutePath, 5 * SEC)
+        val x = frame.width / 2
+        return (0 until frame.height).count { colorClose(OVERLAY_COLOR, frame.getPixel(x, it)) }
     }
 
     private fun imageOverlay(id: String, range: TimeRange) =

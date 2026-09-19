@@ -4,3 +4,4 @@ c80f1fb03e5b43fb-video-edit-phase2-onward.md
 d39a7e4c61b0f258-video-edit-phase3-overlay-wiring.md
 e4088f09a4569101-video-edit-phase3-overlays-complete.md
 9c41d7f2a05e8b63-video-edit-phase3-closeout.md
+b5c8e1d3a7f09264-video-edit-phase4-tool-ui.md
