@@ -7,7 +7,7 @@
 - Branch: `feat/edit`
 - Base commit: `f85c1bb` (2단계 완료)
 - 현재 4단계 구현은 시작되지 않았다.
-- 3단계는 엔진·세션·UI 컴포넌트까지 완료되었고 앱 화면 연결만 남았다. 요구사항은 `agent-docs/requirements/f9a6261093f74075-video-edit-phase3-overlays.md`에 있다.
+- 3단계는 `agent-docs/handoff/9c41d7f2a05e8b63-video-edit-phase3-closeout.md`로 마무리되었고 앱 화면 연결만 남았다. `app/src/debug`의 `OverlayDebugActivity`가 3단계 컴포넌트를 조립한 최소 예시이며, 4단계 UI가 붙으면 제거한다. 요구사항은 `agent-docs/requirements/f9a6261093f74075-video-edit-phase3-overlays.md`에 있다.
 - 붙일 대상: `OverlayEditSession`(오버레이 목록 보유), `ImageGridScreen(images, onImageSelected)`(상태 없음, 호출자가 `ImageRepository`로 목록을 읽는다), `ImageOverlayEditor(overlay, onTransformChange, onDelete)`, `OverlayPreviewPlayer.show(inputPath, durationUs, overlays, surface, size)` / `release()`.
 - 이전 합의:
   - 편집 모드에서 explorer layer는 도구와 소스를 제공한다.
@@ -29,8 +29,7 @@
 - explorer floating window의 플랫폼 제약 및 권한 처리
 - 어떤 UI가 `ImageAsset` 선택을 받아 `ImageOverlay`의 id와 출력 시간축 구간을 만드는가
 - 어떤 조작이 `OverlayPreviewPlayer.show`를 호출하고 어떤 조작이 `release` 후 일반 뷰어로 복귀하는가
-- `PlayerScreen`은 FFmpeg `NativePlayer` + 자체 `SurfaceView`를 쓴다. 미리보기는 `CompositionPlayer.setVideoSurface`로 같은 surface를 재사용하도록 설계했으나, 두 플레이어의 surface 소유권 전환 규칙이 정해지지 않았다.
-- 오버레이 렌더링이 실제 GPU에서 의도한 위치·크기로 그려지는지는 3단계에서 검증되지 않았다. 미리보기를 화면에 붙일 때 처음 확인된다.
+- 편집 상태를 저장하는 시점. `OverlayEditSession`은 세션 한정이라 프로세스 종료 시 오버레이가 사라진다.
 
 ## Contract Snapshot
 none

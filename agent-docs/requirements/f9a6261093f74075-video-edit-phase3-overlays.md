@@ -5,13 +5,14 @@
 
 ## Scope
 - `OverlaySpec`(`TextOverlay`, `ImageOverlay`)와 스타일·변환 검증.
+- `EditService` Intent 직렬화를 통한 포그라운드 서비스 내보내기 경로의 오버레이 전달.
+- 오버레이 렌더링 결과의 계측 검증(위치·구간·배속 구간·concat 전략 동등성).
 - `EditEffects.overlays`를 통한 내보내기 경로 통합과 출력 시간축 기준 구간 매핑.
 - `OverlayEditSession`(세션 한정 오버레이 목록), `OverlayPreviewPlayer`, `ImageOverlayEditor`, `ImageGridScreen`, `ImageRepository`.
 
 ## Out of Scope
 - 편집 도구 UI와 앱 화면 연결 (Phase 4).
 - Phase 2 효과(비율·반전·배속·컷)의 미리보기 반영.
-- 오버레이 렌더링 결과의 계측 테스트(실제 픽셀 검증).
 - 자막 파일(SRT/VTT) 가져오기.
 
 ## Acceptance Criteria
@@ -26,6 +27,9 @@
 | B7 | 읽을 수 없거나 디코딩 불가한 오버레이 이미지 | 내보내면 | `InputNotReadableException`을 발생시킨다 |
 | B8 | 선택된 이미지 오버레이 | 편집 컴포넌트를 조작하면 | 이동·크기·회전·투명도 변경과 삭제가 가능하다 |
 | B9 | 오버레이 목록과 입력 영상 | 미리보기를 시작하면 | 내보내기와 같은 구간 클리핑으로 오버레이만 합성해 재생한다 |
+| B10 | 오버레이를 가진 `EditSpec` | 포그라운드 서비스 경로로 내보내면 | Intent 왕복 후에도 오버레이가 보존되며, 손상된 extra는 spec을 만들지 않는다 |
+| B11 | 배속 구간을 포함한 명세와 출력 시간축 기준 오버레이 구간 | 내보내면 | 결과 영상의 해당 출력 구간에서만 오버레이가 보인다 |
+| B12 | 세션에 있는 오버레이 | `update`하면 | id는 신원 키이므로 바뀌지 않고 같은 id의 내용만 교체된다 |
 
 ## Decisions
 | id | question | user's answer |
@@ -36,6 +40,10 @@
 | E4 | 검증 방식 | JVM 단위 테스트와 전 모듈 컴파일 |
 | E5 | 오버레이 시간축 | 원본이 아닌 출력 시간축 기준 |
 | E6 | `ImageSource` 표현 | `core:model`이 JVM 전용 모듈이므로 `android.net.Uri`가 아닌 문자열 |
+| F1 | `OverlaySpec.id`의 의미 | 불변 신원 키. `update`는 내용만 바꾸며 id 변경 수단이 아니다 |
+| F2 | 미리보기 surface | `NativePlayer`와 소유권을 주고받지 않고 미리보기 전용 surface를 쓴다 |
+| F3 | `EditService`의 overlays 누락 | 이번 단계에서 직렬화를 추가해 고친다 |
+| F4 | 마무리 검증 방식 | 계측 테스트와 debug 전용 검증 화면의 수동 확인을 모두 수행한다 |
 
 ## Open Questions
 none
@@ -50,3 +58,7 @@ none
 | P5 | boundary | 구간이 출력 길이에 정확히 접함 | end가 출력 길이와 같으면 유지, start가 출력 길이 이상이면 제거 | B4, boundary |
 | P6 | edge | 오버레이만 있는 `EditEffects` | `isPresent`가 true이고 FAST 요청이 PRECISE로 강제됨 | B5, invariant |
 | P7 | normal | 세션에 add/update/remove/clear | 목록 반영, 중복·미지 id·잘못된 값은 예외이며 목록 불변 | B8, decision table |
+| P8 | normal | 텍스트·이미지 오버레이를 가진 `EditSpec`의 encode→decode | 오버레이 목록이 원본과 같다(`backgroundArgb`의 null과 값 모두) | B10, round-trip |
+| P9 | error | 길이가 어긋난 오버레이 extra 배열, 알 수 없는 kind | `decodeStartSpec`이 `null` | B10, failure mode |
+| P10 | normal | 2배속 세그먼트 + 출력 시간축 구간 오버레이 | 결과 영상의 그 구간 안 프레임에만 오버레이 픽셀이 있다 | B11, measurement |
+| P11 | normal | 같은 명세를 두 `ConcatStrategy`로 실행 | 오버레이가 나타나는 출력 구간이 같다 | B6/B11, equivalence |

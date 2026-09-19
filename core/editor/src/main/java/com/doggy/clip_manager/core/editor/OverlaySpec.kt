@@ -68,6 +68,11 @@ internal fun OverlaySpec.withRange(range: TimeRange): OverlaySpec = when (this) 
     is ImageOverlay -> copy(range = range)
 }
 
+/**
+ * [OverlaySpec.id] is the identity key and is immutable: [update] replaces the contents of the slot
+ * that already holds the given id, so passing another overlay's id silently discards that overlay.
+ * Callers must keep an overlay's id fixed for its lifetime; there is no rename operation.
+ */
 class OverlayEditSession {
     private val mutableOverlays = MutableStateFlow<List<OverlaySpec>>(emptyList())
     val overlays: StateFlow<List<OverlaySpec>> = mutableOverlays.asStateFlow()

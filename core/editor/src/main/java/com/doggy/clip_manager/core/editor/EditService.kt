@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.media3.common.util.UnstableApi
+import com.doggy.clip_manager.core.model.ImageSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -144,6 +145,24 @@ class EditService : Service() {
         internal const val EXTRA_SPEED_STARTS = "speed_starts"
         internal const val EXTRA_SPEED_ENDS = "speed_ends"
         internal const val EXTRA_SPEED_VALUES = "speed_values"
+        internal const val EXTRA_OVERLAY_KINDS = "overlay_kinds"
+        internal const val EXTRA_OVERLAY_IDS = "overlay_ids"
+        internal const val EXTRA_OVERLAY_STARTS = "overlay_starts"
+        internal const val EXTRA_OVERLAY_ENDS = "overlay_ends"
+        internal const val EXTRA_OVERLAY_TEXTS = "overlay_texts"
+        internal const val EXTRA_OVERLAY_POSITION_X = "overlay_position_x"
+        internal const val EXTRA_OVERLAY_POSITION_Y = "overlay_position_y"
+        internal const val EXTRA_OVERLAY_FONT_SIZES = "overlay_font_sizes"
+        internal const val EXTRA_OVERLAY_COLORS = "overlay_colors"
+        internal const val EXTRA_OVERLAY_HAS_BACKGROUND = "overlay_has_background"
+        internal const val EXTRA_OVERLAY_BACKGROUNDS = "overlay_backgrounds"
+        internal const val EXTRA_OVERLAY_CENTER_ALIGNED = "overlay_center_aligned"
+        internal const val EXTRA_OVERLAY_SOURCE_URIS = "overlay_source_uris"
+        internal const val EXTRA_OVERLAY_SCALES = "overlay_scales"
+        internal const val EXTRA_OVERLAY_ALPHAS = "overlay_alphas"
+        internal const val EXTRA_OVERLAY_ROTATIONS = "overlay_rotations"
+        private const val OVERLAY_KIND_TEXT = "TEXT"
+        private const val OVERLAY_KIND_IMAGE = "IMAGE"
 
         internal fun encodeStartIntent(context: Context, spec: EditSpec): Intent =
             Intent(context, EditService::class.java).apply {
@@ -169,6 +188,25 @@ class EditService : Service() {
                 putExtra(EXTRA_SPEED_STARTS, spec.effects.speeds.map { it.range.startUs }.toLongArray())
                 putExtra(EXTRA_SPEED_ENDS, spec.effects.speeds.map { it.range.endUs }.toLongArray())
                 putExtra(EXTRA_SPEED_VALUES, spec.effects.speeds.map { it.speed }.toFloatArray())
+                val overlays = spec.effects.overlays
+                putExtra(EXTRA_OVERLAY_KINDS, overlays.map { if (it is TextOverlay) OVERLAY_KIND_TEXT else OVERLAY_KIND_IMAGE }.toTypedArray())
+                putExtra(EXTRA_OVERLAY_IDS, overlays.map { it.id }.toTypedArray())
+                putExtra(EXTRA_OVERLAY_STARTS, overlays.map { it.range.startUs }.toLongArray())
+                putExtra(EXTRA_OVERLAY_ENDS, overlays.map { it.range.endUs }.toLongArray())
+                putExtra(EXTRA_OVERLAY_TEXTS, overlays.map { (it as? TextOverlay)?.text ?: "" }.toTypedArray())
+                putExtra(EXTRA_OVERLAY_POSITION_X, overlays.map(::overlayPositionX).toFloatArray())
+                putExtra(EXTRA_OVERLAY_POSITION_Y, overlays.map(::overlayPositionY).toFloatArray())
+                putExtra(EXTRA_OVERLAY_FONT_SIZES, overlays.map { (it as? TextOverlay)?.style?.fontSizePt ?: 0f }.toFloatArray())
+                putExtra(EXTRA_OVERLAY_COLORS, overlays.map { (it as? TextOverlay)?.style?.colorArgb ?: 0L }.toLongArray())
+                putExtra(EXTRA_OVERLAY_HAS_BACKGROUND, overlays.map { (it as? TextOverlay)?.style?.backgroundArgb != null }.toBooleanArray())
+                // backgroundArgb is a nullable Long with no invalid value to use as a sentinel, so presence
+                // travels in EXTRA_OVERLAY_HAS_BACKGROUND separately from the value in EXTRA_OVERLAY_BACKGROUNDS.
+                putExtra(EXTRA_OVERLAY_BACKGROUNDS, overlays.map { (it as? TextOverlay)?.style?.backgroundArgb ?: 0L }.toLongArray())
+                putExtra(EXTRA_OVERLAY_CENTER_ALIGNED, overlays.map { (it as? TextOverlay)?.style?.centerAligned ?: false }.toBooleanArray())
+                putExtra(EXTRA_OVERLAY_SOURCE_URIS, overlays.map { (it as? ImageOverlay)?.source?.uri ?: "" }.toTypedArray())
+                putExtra(EXTRA_OVERLAY_SCALES, overlays.map { (it as? ImageOverlay)?.transform?.scale ?: 0f }.toFloatArray())
+                putExtra(EXTRA_OVERLAY_ALPHAS, overlays.map { (it as? ImageOverlay)?.transform?.alpha ?: 0f }.toFloatArray())
+                putExtra(EXTRA_OVERLAY_ROTATIONS, overlays.map { (it as? ImageOverlay)?.transform?.rotationDegrees ?: 0f }.toFloatArray())
             }
 
         internal fun decodeStartSpec(intent: Intent): EditSpec? {
@@ -183,7 +221,8 @@ class EditService : Service() {
             val layout = decodeLayout(intent) ?: return null
             val flips = decodeFlips(intent) ?: return null
             val speeds = decodeSpeeds(intent) ?: return null
-            val effects = EditEffects(layout, flips, speeds)
+            val overlays = decodeOverlays(intent) ?: return null
+            val effects = EditEffects(layout, flips, speeds, overlays)
             try {
                 EditPlanner.validateEffects(effects)
             } catch (_: InvalidEffectException) {
@@ -229,6 +268,82 @@ class EditService : Service() {
             val speeds = intent.getFloatArrayExtra(EXTRA_SPEED_VALUES) ?: return null
             if (starts.size != ends.size || starts.size != speeds.size) return null
             return starts.indices.map { SpeedRange(TimeRange(starts[it], ends[it]), speeds[it]) }
+        }
+
+        private fun overlayPositionX(overlay: OverlaySpec): Float = when (overlay) {
+            is TextOverlay -> overlay.style.positionX
+            is ImageOverlay -> overlay.transform.positionX
+        }
+
+        private fun overlayPositionY(overlay: OverlaySpec): Float = when (overlay) {
+            is TextOverlay -> overlay.style.positionY
+            is ImageOverlay -> overlay.transform.positionY
+        }
+
+        private fun decodeOverlays(intent: Intent): List<OverlaySpec>? {
+            val keys = listOf(
+                EXTRA_OVERLAY_KINDS, EXTRA_OVERLAY_IDS, EXTRA_OVERLAY_STARTS, EXTRA_OVERLAY_ENDS,
+                EXTRA_OVERLAY_TEXTS, EXTRA_OVERLAY_POSITION_X, EXTRA_OVERLAY_POSITION_Y, EXTRA_OVERLAY_FONT_SIZES,
+                EXTRA_OVERLAY_COLORS, EXTRA_OVERLAY_HAS_BACKGROUND, EXTRA_OVERLAY_BACKGROUNDS, EXTRA_OVERLAY_CENTER_ALIGNED,
+                EXTRA_OVERLAY_SOURCE_URIS, EXTRA_OVERLAY_SCALES, EXTRA_OVERLAY_ALPHAS, EXTRA_OVERLAY_ROTATIONS,
+            )
+            if (!keys.any(intent::hasExtra)) return emptyList()
+            val kinds = intent.getStringArrayExtra(EXTRA_OVERLAY_KINDS) ?: return null
+            val ids = intent.getStringArrayExtra(EXTRA_OVERLAY_IDS) ?: return null
+            val starts = intent.getLongArrayExtra(EXTRA_OVERLAY_STARTS) ?: return null
+            val ends = intent.getLongArrayExtra(EXTRA_OVERLAY_ENDS) ?: return null
+            val texts = intent.getStringArrayExtra(EXTRA_OVERLAY_TEXTS) ?: return null
+            val positionX = intent.getFloatArrayExtra(EXTRA_OVERLAY_POSITION_X) ?: return null
+            val positionY = intent.getFloatArrayExtra(EXTRA_OVERLAY_POSITION_Y) ?: return null
+            val fontSizes = intent.getFloatArrayExtra(EXTRA_OVERLAY_FONT_SIZES) ?: return null
+            val colors = intent.getLongArrayExtra(EXTRA_OVERLAY_COLORS) ?: return null
+            val hasBackground = intent.getBooleanArrayExtra(EXTRA_OVERLAY_HAS_BACKGROUND) ?: return null
+            val backgrounds = intent.getLongArrayExtra(EXTRA_OVERLAY_BACKGROUNDS) ?: return null
+            val centerAligned = intent.getBooleanArrayExtra(EXTRA_OVERLAY_CENTER_ALIGNED) ?: return null
+            val sourceUris = intent.getStringArrayExtra(EXTRA_OVERLAY_SOURCE_URIS) ?: return null
+            val scales = intent.getFloatArrayExtra(EXTRA_OVERLAY_SCALES) ?: return null
+            val alphas = intent.getFloatArrayExtra(EXTRA_OVERLAY_ALPHAS) ?: return null
+            val rotations = intent.getFloatArrayExtra(EXTRA_OVERLAY_ROTATIONS) ?: return null
+
+            val size = kinds.size
+            val sizes = listOf(
+                ids.size, starts.size, ends.size, texts.size, positionX.size, positionY.size, fontSizes.size,
+                colors.size, hasBackground.size, backgrounds.size, centerAligned.size, sourceUris.size,
+                scales.size, alphas.size, rotations.size,
+            )
+            if (sizes.any { it != size }) return null
+
+            return kinds.indices.map { i ->
+                val range = TimeRange(starts[i], ends[i])
+                when (kinds[i]) {
+                    OVERLAY_KIND_TEXT -> TextOverlay(
+                        id = ids[i],
+                        range = range,
+                        text = texts[i],
+                        style = TextOverlayStyle(
+                            positionX = positionX[i],
+                            positionY = positionY[i],
+                            fontSizePt = fontSizes[i],
+                            colorArgb = colors[i],
+                            backgroundArgb = if (hasBackground[i]) backgrounds[i] else null,
+                            centerAligned = centerAligned[i],
+                        ),
+                    )
+                    OVERLAY_KIND_IMAGE -> ImageOverlay(
+                        id = ids[i],
+                        range = range,
+                        source = ImageSource(sourceUris[i]),
+                        transform = OverlayTransform(
+                            positionX = positionX[i],
+                            positionY = positionY[i],
+                            scale = scales[i],
+                            alpha = alphas[i],
+                            rotationDegrees = rotations[i],
+                        ),
+                    )
+                    else -> return null
+                }
+            }
         }
     }
 }

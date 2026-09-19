@@ -36,7 +36,10 @@ class OverlayPreviewPlayer(private val context: Context) {
             val composition = Composition.Builder(
                 listOf(
                     EditedMediaItemSequence.Builder(
+                        // CompositionPlayer asks each item for its presentation duration before playback
+                        // and fails if the item was never given one, so durationUs is required here.
                         EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(input)))
+                            .setDurationUs(durationUs)
                             .setEffects(Effects(emptyList(), videoEffects))
                             .build(),
                     ).build(),

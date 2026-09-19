@@ -574,8 +574,9 @@ class OverlaySpecTest {
         assertEquals(listOf(updatedFirst, second), session.overlays.value)
     }
 
+    /** F1: id is the identity key, so update targets the slot holding it and never renames an overlay. */
     @Test
-    fun overlayEditSession_R11_characterization_updatingWithAnIdCopiedFromAnotherOverlayOverwritesThatOverlaysSlotWithTheCallersOtherFields() {
+    fun overlayEditSession_F1_edge_updatingWithAnIdCopiedFromAnotherOverlayOverwritesThatOverlaysSlot() {
         val session = OverlayEditSession()
         val first = textOverlay(id = "t1", range = TimeRange(0, SEC), text = "first")
         val second = textOverlay(id = "t2", range = TimeRange(SEC, 2 * SEC), text = "second")

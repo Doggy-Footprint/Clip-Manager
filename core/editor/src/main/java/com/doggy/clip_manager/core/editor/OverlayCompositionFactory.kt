@@ -74,9 +74,12 @@ class OverlayCompositionFactory(private val context: Context) {
             ?: throw InputNotReadableException("cannot decode overlay image: ${source.uri}")
     }
 
+    // A bounds-only pass returns a null bitmap by design, so an unopenable stream is rejected here
+    // rather than by testing [block]'s result for null.
     private fun <T> decode(source: ImageSource, block: (java.io.InputStream) -> T): T? = try {
-        context.contentResolver.openInputStream(Uri.parse(source.uri))?.use(block)
+        val stream = context.contentResolver.openInputStream(Uri.parse(source.uri))
             ?: throw InputNotReadableException("cannot open overlay image: ${source.uri}")
+        stream.use(block)
     } catch (error: InputNotReadableException) {
         throw error
     } catch (error: Exception) {
