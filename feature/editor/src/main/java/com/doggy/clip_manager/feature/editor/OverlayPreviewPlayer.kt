@@ -1,4 +1,4 @@
-package com.doggy.clip_manager.feature.player
+package com.doggy.clip_manager.feature.editor
 
 import android.content.Context
 import android.net.Uri

@@ -1,4 +1,4 @@
-package com.doggy.clip_manager.feature.player
+package com.doggy.clip_manager.feature.editor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -49,12 +49,12 @@ internal fun EditorToolPanel(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val padding = dimensionResource(R.dimen.feature_player_overlay_padding_horizontal)
-    val contentColor = colorResource(R.color.feature_player_content)
+    val padding = dimensionResource(R.dimen.feature_editor_overlay_padding_horizontal)
+    val contentColor = colorResource(R.color.feature_editor_content)
 
     Column(
         modifier
-            .background(colorResource(R.color.feature_player_scrim))
+            .background(colorResource(R.color.feature_editor_scrim))
             .verticalScroll(rememberScrollState())
             .padding(padding),
         verticalArrangement = Arrangement.spacedBy(padding),
@@ -63,7 +63,7 @@ internal fun EditorToolPanel(
         val selection = viewModel.selection
         Text(
             stringResource(
-                R.string.feature_player_editor_selection,
+                R.string.feature_editor_selection,
                 formatTime(selection.startUs / US_PER_MS),
                 formatTime(selection.endUs / US_PER_MS),
             ),
@@ -88,17 +88,17 @@ internal fun EditorToolPanel(
                     label = {
                         Text(
                             stringResource(
-                                if (mode == CutMode.FAST) R.string.feature_player_editor_cut_fast
-                                else R.string.feature_player_editor_cut_precise,
+                                if (mode == CutMode.FAST) R.string.feature_editor_cut_fast
+                                else R.string.feature_editor_cut_precise,
                             ),
                         )
                     },
                 )
             }
-            val defaultText = stringResource(R.string.feature_player_editor_text_default)
+            val defaultText = stringResource(R.string.feature_editor_text_default)
             AssistChip(
                 onClick = { viewModel.addTextOverlay(defaultText) },
-                label = { Text(stringResource(R.string.feature_player_editor_add_text)) },
+                label = { Text(stringResource(R.string.feature_editor_add_text)) },
             )
         }
 
@@ -122,8 +122,8 @@ internal fun EditorToolPanel(
             if (state.slowState != SlowState.NORMAL) {
                 Text(
                     stringResource(
-                        if (state.slowState == SlowState.STALLED) R.string.feature_player_editor_stalled
-                        else R.string.feature_player_editor_slow,
+                        if (state.slowState == SlowState.STALLED) R.string.feature_editor_stalled
+                        else R.string.feature_editor_slow,
                     ),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
@@ -136,7 +136,7 @@ internal fun EditorToolPanel(
             enabled = viewModel.path != null && !isExporting(state),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(stringResource(R.string.feature_player_editor_export))
+            Text(stringResource(R.string.feature_editor_export))
         }
     }
 }
@@ -158,20 +158,20 @@ private fun OverlayRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        TextButton(onClick = onRemove) { Text(stringResource(R.string.feature_player_editor_remove)) }
+        TextButton(onClick = onRemove) { Text(stringResource(R.string.feature_editor_remove)) }
     }
 }
 
 @Composable
 private fun overlayLabel(overlay: OverlaySpec): String = when (overlay) {
     is TextOverlay -> stringResource(
-        R.string.feature_player_editor_text_item,
-        overlay.text.ifBlank { stringResource(R.string.feature_player_editor_text_placeholder) },
+        R.string.feature_editor_text_item,
+        overlay.text.ifBlank { stringResource(R.string.feature_editor_text_placeholder) },
         formatTime(overlay.range.startUs / US_PER_MS),
         formatTime(overlay.range.endUs / US_PER_MS),
     )
     is ImageOverlay -> stringResource(
-        R.string.feature_player_editor_image_item,
+        R.string.feature_editor_image_item,
         formatTime(overlay.range.startUs / US_PER_MS),
         formatTime(overlay.range.endUs / US_PER_MS),
     )
@@ -186,19 +186,19 @@ private fun TextOverlayControls(
     OutlinedTextField(
         value = overlay.text,
         onValueChange = { onChange(overlay.copy(text = it)) },
-        label = { Text(stringResource(R.string.feature_player_editor_text_label)) },
+        label = { Text(stringResource(R.string.feature_editor_text_label)) },
         // A blank value is rejected by the overlay session, so the field simply keeps the last
         // non-blank text rather than letting the user empty it.
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
-    LabelledSlider(R.string.feature_player_editor_font_size, overlay.style.fontSizePt, MIN_FONT_SIZE_PT..MAX_FONT_SIZE_PT, contentColor) {
+    LabelledSlider(R.string.feature_editor_font_size, overlay.style.fontSizePt, MIN_FONT_SIZE_PT..MAX_FONT_SIZE_PT, contentColor) {
         onChange(overlay.copy(style = overlay.style.copy(fontSizePt = it)))
     }
-    LabelledSlider(R.string.feature_player_editor_position_x, overlay.style.positionX, 0f..1f, contentColor) {
+    LabelledSlider(R.string.feature_editor_position_x, overlay.style.positionX, 0f..1f, contentColor) {
         onChange(overlay.copy(style = overlay.style.copy(positionX = it)))
     }
-    LabelledSlider(R.string.feature_player_editor_position_y, overlay.style.positionY, 0f..1f, contentColor) {
+    LabelledSlider(R.string.feature_editor_position_y, overlay.style.positionY, 0f..1f, contentColor) {
         onChange(overlay.copy(style = overlay.style.copy(positionY = it)))
     }
 }
@@ -219,11 +219,11 @@ private fun LabelledSlider(
 
 @Composable
 private fun exportStatus(state: EditState): String = when (state) {
-    EditState.Idle -> stringResource(R.string.feature_player_editor_idle)
-    is EditState.Running -> stringResource(R.string.feature_player_editor_running, (state.progress * 100).toInt())
-    is EditState.Completed -> stringResource(R.string.feature_player_editor_completed, state.outputPath)
-    is EditState.Failed -> stringResource(R.string.feature_player_editor_failed, state.error::class.java.simpleName)
-    EditState.Cancelled -> stringResource(R.string.feature_player_editor_cancelled)
+    EditState.Idle -> stringResource(R.string.feature_editor_idle)
+    is EditState.Running -> stringResource(R.string.feature_editor_running, (state.progress * 100).toInt())
+    is EditState.Completed -> stringResource(R.string.feature_editor_completed, state.outputPath)
+    is EditState.Failed -> stringResource(R.string.feature_editor_failed, state.error::class.java.simpleName)
+    EditState.Cancelled -> stringResource(R.string.feature_editor_cancelled)
 }
 
 private const val MIN_FONT_SIZE_PT = 8f

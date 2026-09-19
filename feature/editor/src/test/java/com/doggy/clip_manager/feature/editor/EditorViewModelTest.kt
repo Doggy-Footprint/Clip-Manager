@@ -1,4 +1,4 @@
-package com.doggy.clip_manager.feature.player
+package com.doggy.clip_manager.feature.editor
 
 import androidx.media3.common.util.UnstableApi
 import androidx.test.core.app.ApplicationProvider
@@ -55,6 +55,6 @@ class EditorViewModelTest {
     fun addTextOverlay_decisionG4_normal_theDefaultTextIsNotBlank() {
         val context = ApplicationProvider.getApplicationContext<Context>()
 
-        assertTrue(context.getString(R.string.feature_player_editor_text_default).isNotBlank())
+        assertTrue(context.getString(R.string.feature_editor_text_default).isNotBlank())
     }
 }

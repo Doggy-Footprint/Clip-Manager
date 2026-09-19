@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="feature_editor_background">#FF000000</color>
+    <color name="feature_editor_content">#FFFFFFFF</color>
+    <color name="feature_editor_scrim">#8C000000</color>
+    <color name="feature_editor_overlay_bounds">#FFFFFFFF</color>
+    <color name="feature_editor_overlay_handle">#FFFFFFFF</color>
+    <color name="feature_editor_overlay_handle_glyph">#FF000000</color>
+    <color name="feature_editor_overlay_alpha_track">#66FFFFFF</color>
+</resources>

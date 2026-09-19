@@ -1,4 +1,4 @@
-package com.doggy.clip_manager.feature.player
+package com.doggy.clip_manager.feature.editor
 
 import android.view.Surface
 import android.view.SurfaceHolder
@@ -75,7 +75,7 @@ fun EditorPane(
     }
 
     ClipTheme(darkTheme = true) {
-        Column(modifier.fillMaxSize().background(colorResource(R.color.feature_player_background))) {
+        Column(modifier.fillMaxSize().background(colorResource(R.color.feature_editor_background))) {
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
@@ -99,8 +99,8 @@ fun EditorPane(
                 )
                 if (previewError || path == null) {
                     Text(
-                        stringResource(R.string.feature_player_editor_preview_failed),
-                        color = colorResource(R.color.feature_player_content),
+                        stringResource(R.string.feature_editor_preview_failed),
+                        color = colorResource(R.color.feature_editor_content),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -118,7 +118,7 @@ fun EditorPane(
                 overlays = overlays,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(dimensionResource(R.dimen.feature_player_editor_panel_height)),
+                    .height(dimensionResource(R.dimen.feature_editor_panel_height)),
             )
         }
     }

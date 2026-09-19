@@ -1,4 +1,4 @@
-package com.doggy.clip_manager.feature.player
+package com.doggy.clip_manager.feature.editor
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -70,15 +70,15 @@ fun ImageOverlayEditor(
     val density = LocalDensity.current
     val halfExtentRatio = ResourcesCompat.getFloat(
         LocalContext.current.resources,
-        R.dimen.feature_player_overlay_half_extent_ratio,
+        R.dimen.feature_editor_overlay_half_extent_ratio,
     )
-    val handleRadius = dimensionResource(R.dimen.feature_player_overlay_handle_radius)
-    val touchRadius = dimensionResource(R.dimen.feature_player_overlay_handle_touch_radius)
-    val glyph = dimensionResource(R.dimen.feature_player_overlay_handle_glyph)
-    val stroke = dimensionResource(R.dimen.feature_player_overlay_stroke)
-    val alphaBarOffset = dimensionResource(R.dimen.feature_player_overlay_alpha_bar_offset)
-    val alphaBarHeight = dimensionResource(R.dimen.feature_player_overlay_alpha_bar_height)
-    val alphaThumbRadius = dimensionResource(R.dimen.feature_player_overlay_alpha_thumb_radius)
+    val handleRadius = dimensionResource(R.dimen.feature_editor_overlay_handle_radius)
+    val touchRadius = dimensionResource(R.dimen.feature_editor_overlay_handle_touch_radius)
+    val glyph = dimensionResource(R.dimen.feature_editor_overlay_handle_glyph)
+    val stroke = dimensionResource(R.dimen.feature_editor_overlay_stroke)
+    val alphaBarOffset = dimensionResource(R.dimen.feature_editor_overlay_alpha_bar_offset)
+    val alphaBarHeight = dimensionResource(R.dimen.feature_editor_overlay_alpha_bar_height)
+    val alphaThumbRadius = dimensionResource(R.dimen.feature_editor_overlay_alpha_thumb_radius)
     val metrics = remember(density, halfExtentRatio, handleRadius, touchRadius, glyph, stroke, alphaBarOffset, alphaBarHeight, alphaThumbRadius) {
         with(density) {
             OverlayMetrics(
@@ -94,10 +94,10 @@ fun ImageOverlayEditor(
         }
     }
 
-    val boundsColor = colorResource(R.color.feature_player_overlay_bounds)
-    val handleColor = colorResource(R.color.feature_player_overlay_handle)
-    val glyphColor = colorResource(R.color.feature_player_overlay_handle_glyph)
-    val trackColor = colorResource(R.color.feature_player_overlay_alpha_track)
+    val boundsColor = colorResource(R.color.feature_editor_overlay_bounds)
+    val handleColor = colorResource(R.color.feature_editor_overlay_handle)
+    val glyphColor = colorResource(R.color.feature_editor_overlay_handle_glyph)
+    val trackColor = colorResource(R.color.feature_editor_overlay_alpha_track)
 
     // A single pointer layer: two stacked Canvases would let the upper one swallow the gestures
     // of the lower one.

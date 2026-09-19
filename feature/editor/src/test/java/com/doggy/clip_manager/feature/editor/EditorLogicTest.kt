@@ -1,4 +1,4 @@
-package com.doggy.clip_manager.feature.player
+package com.doggy.clip_manager.feature.editor
 
 import com.doggy.clip_manager.core.editor.CutMode
 import com.doggy.clip_manager.core.editor.ImageOverlay
