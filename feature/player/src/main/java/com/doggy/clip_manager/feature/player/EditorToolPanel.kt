@@ -36,6 +36,7 @@ import com.doggy.clip_manager.core.editor.ImageOverlay
 import com.doggy.clip_manager.core.editor.OverlaySpec
 import com.doggy.clip_manager.core.editor.SlowState
 import com.doggy.clip_manager.core.editor.TextOverlay
+import com.doggy.clip_manager.core.ui.formatTime
 
 private const val US_PER_MS = 1_000L
 

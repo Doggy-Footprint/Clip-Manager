@@ -60,6 +60,7 @@ import com.doggy.clip_manager.core.designsystem.icon.ClipIcons
 import com.doggy.clip_manager.core.designsystem.theme.ClipTheme
 import com.doggy.clip_manager.core.model.SeekMode
 import com.doggy.clip_manager.core.player.ScrubThrottle
+import com.doggy.clip_manager.core.ui.formatTime
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -410,15 +411,5 @@ private fun PlayerControlButton(
             contentDescription = stringResource(description),
             modifier = Modifier.size(dimensionResource(R.dimen.feature_player_control_icon_size)),
         )
-    }
-}
-
-@Composable
-internal fun formatTime(ms: Long): String {
-    val parts = playbackTimeParts(ms)
-    return if (parts.showHours) {
-        stringResource(R.string.feature_player_time_hours, parts.hours, parts.minutes, parts.seconds)
-    } else {
-        stringResource(R.string.feature_player_time, parts.minutes, parts.seconds)
     }
 }
