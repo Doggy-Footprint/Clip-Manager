@@ -18,7 +18,7 @@ A comment/docstring is allowed only when it records a non-obvious:
 Do not use comments to narrate code, restate names/types/control flow, provide tutorials, or justify ordinary implementation choices.
 
 ## Index & Staleness Management
-1. Every agent-managed directory (e.g., `agent-docs/adr`, `agent-docs/rejections`, `agent-docs/handoff`) must contain `index.md` and `stale.md`.
+1. Every agent-managed directory (e.g., `agent-docs/adr`, `agent-docs/rejections`, `agent-docs/handoff`) must contain `index.md`, `stale.md`, and a `stale/` directory.
 2. File Naming: `<16-char-hex-id>-<kebab-case-name>.md` (e.g., `3f8a9c12b0e45d67-auth-flow.md`).
 3. `index.md` Format: entries separated by `---`:
    ````
@@ -27,7 +27,7 @@ Do not use comments to narrate code, restate names/types/control flow, provide t
    Related Files: <comma-separated repo paths>
    Related Symbols: <comma-separated function/class/module names>
    ````
-4. `stale.md` Format: append one stale file per line.
+4. When marking a document stale, remove its entry from `index.md`, append that index block verbatim to `stale.md`, and move the document to `stale/`.
 
 ## Shared Comment & Docstring Synchronization Rules
 
@@ -101,7 +101,7 @@ Required file structure:
 
 The ADR "DO NOT Include" list applies.
 
-When the revisit condition is met and the alternative is adopted, append the file to `stale.md`.
+When the revisit condition is met and the alternative is adopted, remove its entry from `index.md` and move the file to `stale/`.
 
 ## Handoff Rule
 
@@ -119,9 +119,13 @@ Required file structure:
 - `## Open Questions`
 - `## Contract Snapshot` (contract content at stop, or `none`)
 
+The contracts directory is deleted when the session ends, so every section must stand on its own:
+never point at a contract file or refer to contract content that is not written out in this handoff.
+`## Contract Snapshot` holds the contract text inline; any other section that needs it restates it.
+
 When resuming, never delete or edit existing Failed Attempts rows; only append.
 
-When the task completes, append the file to `stale.md`.
+When the task completes, remove its entry from `index.md` and move the file to `stale/`.
 
 # Task Guide
 

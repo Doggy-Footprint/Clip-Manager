@@ -3,6 +3,7 @@ package com.doggy.clip_manager.core.editor
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.service.notification.StatusBarNotification
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -172,5 +173,98 @@ class EditServiceTest {
         val secondJob = awaitJobFor(secondSpec)
         val secondFinalState = awaitFinalState(secondJob)
         assertTrue(secondFinalState is EditState.Completed)
+    }
+
+    @Test
+    fun encodeDecodeStartSpec_C14_normal_roundTripsEveryEffectField() {
+        val spec = EditSpec(
+            inputPath = "/input.mp4",
+            keepRanges = listOf(TimeRange(0, SEC), TimeRange(2 * SEC, 3 * SEC)),
+            cutMode = CutMode.FAST,
+            concatStrategy = ConcatStrategy.SEGMENT_CONCAT,
+            effects = EditEffects(
+                frameLayout = FrameLayout.Ratio(3, 4, FrameMode.FIT, NormalizedPoint(1f, 0f)),
+                flips = listOf(FlipRange(TimeRange(0, SEC), true, false)),
+                speeds = listOf(SpeedRange(TimeRange(2 * SEC, 3 * SEC), 1.25f)),
+            ),
+        )
+
+        assertEquals(spec, EditService.decodeStartSpec(EditService.encodeStartIntent(context, spec)))
+    }
+
+    @Test
+    fun decodeStartSpec_C14_error_missingPayloadReturnsNullWithoutStartingJob() {
+        val currentBefore = EditJobs.current.value
+        val malformed = Intent(context, EditService::class.java).replaceExtras(Bundle())
+
+        assertEquals(null, EditService.decodeStartSpec(malformed))
+        assertEquals(currentBefore, EditJobs.current.value)
+    }
+
+    @Test
+    fun decodeStartSpec_C14_error_partialFlipArraysReturnNullWithoutStartingJob() {
+        val intent = validEffectsIntent().apply { removeExtra(EditService.EXTRA_FLIP_HORIZONTAL) }
+
+        assertDecodeRefuses(intent)
+    }
+
+    @Test
+    fun decodeStartSpec_C14_error_mismatchedFlipArraysReturnNullWithoutStartingJob() {
+        val intent = validEffectsIntent().apply {
+            putExtra(EditService.EXTRA_FLIP_ENDS, longArrayOf(SEC, 2 * SEC))
+        }
+
+        assertDecodeRefuses(intent)
+    }
+
+    @Test
+    fun decodeStartSpec_C14_error_partialSpeedArraysReturnNullWithoutStartingJob() {
+        val intent = validEffectsIntent().apply { removeExtra(EditService.EXTRA_SPEED_VALUES) }
+
+        assertDecodeRefuses(intent)
+    }
+
+    @Test
+    fun decodeStartSpec_C14_error_mismatchedSpeedArraysReturnNullWithoutStartingJob() {
+        val intent = validEffectsIntent().apply {
+            putExtra(EditService.EXTRA_SPEED_VALUES, floatArrayOf(1.25f, 1.5f))
+        }
+
+        assertDecodeRefuses(intent)
+    }
+
+    @Test
+    fun decodeStartSpec_C14_error_nonPositiveFrameWidthReturnsNullWithoutStartingJob() {
+        val intent = validEffectsIntent().apply { putExtra(EditService.EXTRA_FRAME_WIDTH, 0) }
+
+        assertDecodeRefuses(intent)
+    }
+
+    @Test
+    fun decodeStartSpec_C14_error_outOfBoundsCropCoordinateReturnsNullWithoutStartingJob() {
+        val intent = validEffectsIntent().apply { putExtra(EditService.EXTRA_CROP_X, 1.01f) }
+
+        assertDecodeRefuses(intent)
+    }
+
+    private fun validEffectsIntent(): Intent = EditService.encodeStartIntent(
+        context,
+        EditSpec(
+            inputPath = "/input.mp4",
+            keepRanges = listOf(TimeRange(0, SEC)),
+            cutMode = CutMode.PRECISE,
+            effects = EditEffects(
+                frameLayout = FrameLayout.Ratio(1, 1, FrameMode.CROP),
+                flips = listOf(FlipRange(TimeRange(0, SEC), true, false)),
+                speeds = listOf(SpeedRange(TimeRange(0, SEC), 1.25f)),
+            ),
+        ),
+    )
+
+    private fun assertDecodeRefuses(intent: Intent) {
+        val currentBefore = EditJobs.current.value
+
+        assertEquals(null, EditService.decodeStartSpec(intent))
+        assertEquals(currentBefore, EditJobs.current.value)
     }
 }

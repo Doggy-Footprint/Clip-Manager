@@ -28,9 +28,11 @@ class VideoEditor(
 
     fun start(spec: EditSpec): EditJob {
         EditPlanner.validateRanges(spec.keepRanges)
+        EditPlanner.validateEffects(spec.effects)
 
         val probeResult = runCatching { MediaProbe.probe(spec.inputPath) }
         val keepRangesResult = probeResult.mapCatching { probe ->
+            EditPlanner.validateEffects(spec.effects, probe.durationUs)
             EditPlanner.normalizeKeepRanges(probe.durationUs, spec.keepRanges)
         }
         // InvalidRangeException/EmptyEditException must surface synchronously, but only once the
@@ -72,7 +74,7 @@ class VideoEditor(
                         throw InputNotReadableException("cannot read input: ${spec.inputPath}", cause)
                     }
                     val baseKeepRanges = keepRangesResult.getOrThrow()
-                    val effectiveMode = EditPlanner.effectiveCutMode(spec.cutMode, spec.hasEffects)
+                    val effectiveMode = EditPlanner.effectiveCutMode(spec.cutMode, spec.effects)
                     val keepRanges = if (effectiveMode == CutMode.FAST) {
                         val keyframes = MediaProbe.videoKeyframesUs(spec.inputPath, probe.videoTrackIndex)
                         EditPlanner.snapToKeyframes(baseKeepRanges, keyframes)
@@ -80,7 +82,9 @@ class VideoEditor(
                         baseKeepRanges
                     }
 
-                    val outputDurationUs = EditPlanner.outputDurationUs(keepRanges)
+                    val segments = EditPlanner.plan(probe.durationUs, keepRanges, spec.effects).segments
+                    val outputDurationUs = EditPlanner.outputDurationUs(segments)
+                    val overlays = EditPlanner.normalizeOutputOverlays(outputDurationUs, spec.effects.overlays)
                     val expectedMs = timeModel.expectedMs(effectiveMode, outputDurationUs, probe.width, probe.height)
                     val slowDetector = SlowDetector(expectedMs, startMs)
 
@@ -107,7 +111,11 @@ class VideoEditor(
                         CutMode.PRECISE -> PreciseTransformEditor.edit(
                             context,
                             spec.inputPath,
-                            keepRanges,
+                            segments,
+                            spec.effects.frameLayout,
+                            probe.width,
+                            probe.height,
+                            overlays,
                             output.path,
                             tempDir,
                             spec.concatStrategy,

@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -59,6 +60,7 @@ import com.doggy.clip_manager.core.designsystem.icon.ClipIcons
 import com.doggy.clip_manager.core.designsystem.theme.ClipTheme
 import com.doggy.clip_manager.core.model.SeekMode
 import com.doggy.clip_manager.core.player.ScrubThrottle
+import com.doggy.clip_manager.core.ui.formatTime
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -71,6 +73,7 @@ fun PlayerPane(
     isFullscreen: Boolean,
     onToggleFullscreen: () -> Unit,
     modifier: Modifier = Modifier,
+    onStartEdit: ((durationUs: Long) -> Unit)? = null,
     viewModel: PlayerViewModel = hiltViewModel(),
 ) {
     if (path == null) {
@@ -84,7 +87,7 @@ fun PlayerPane(
     LaunchedEffect(path) { viewModel.open(path) }
     val currentPath = viewModel.path ?: return
     key(currentPath) {
-        Box(modifier) { PlayerContent(viewModel, isFullscreen, onToggleFullscreen) }
+        Box(modifier) { PlayerContent(viewModel, isFullscreen, onToggleFullscreen, onStartEdit) }
     }
 }
 
@@ -94,10 +97,15 @@ private fun PlayerContent(
     viewModel: PlayerViewModel,
     isFullscreen: Boolean,
     onToggleFullscreen: () -> Unit,
+    onStartEdit: ((durationUs: Long) -> Unit)?,
 ) {
     val player = viewModel.player
     val durationMs = viewModel.durationMs
     val scrubThrottle = remember { ScrubThrottle() }
+
+    // The pane is swapped out wholesale when editing starts; without this the released surface
+    // would leave playback running with audio only.
+    DisposableEffect(player) { onDispose { player.pause() } }
 
     var sliderPositionMs by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
@@ -160,6 +168,7 @@ private fun PlayerContent(
         },
         isFullscreen = isFullscreen,
         onToggleFullscreen = onToggleFullscreen,
+        onStartEdit = onStartEdit?.let { start -> { start(durationMs * 1_000L) } },
         onSeekFinished = {
             scrubThrottle.onDragEnd()
             isDragging = false
@@ -201,6 +210,7 @@ internal fun PlayerScreen(
     videoContent: @Composable (Modifier) -> Unit,
     isFullscreen: Boolean = false,
     onToggleFullscreen: () -> Unit = {},
+    onStartEdit: (() -> Unit)? = null,
 ) {
     val backgroundColor = colorResource(R.color.feature_player_background)
     val contentColor = colorResource(R.color.feature_player_content)
@@ -270,6 +280,11 @@ internal fun PlayerScreen(
                                 .padding(horizontal = dimensionResource(R.dimen.feature_player_title_padding_horizontal)),
                         )
                         Row {
+                            if (onStartEdit != null) {
+                                IconButton(onClick = onStartEdit, enabled = uiState.opened, colors = iconColors) {
+                                    Icon(ClipIcons.Edit, stringResource(R.string.feature_player_edit))
+                                }
+                            }
                             IconButton(onClick = {}, colors = iconColors) {
                                 Icon(ClipIcons.MoreVert, stringResource(R.string.feature_player_quick_menu))
                             }
@@ -396,15 +411,5 @@ private fun PlayerControlButton(
             contentDescription = stringResource(description),
             modifier = Modifier.size(dimensionResource(R.dimen.feature_player_control_icon_size)),
         )
-    }
-}
-
-@Composable
-private fun formatTime(ms: Long): String {
-    val parts = playbackTimeParts(ms)
-    return if (parts.showHours) {
-        stringResource(R.string.feature_player_time_hours, parts.hours, parts.minutes, parts.seconds)
-    } else {
-        stringResource(R.string.feature_player_time, parts.minutes, parts.seconds)
     }
 }

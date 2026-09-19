@@ -52,13 +52,17 @@ android {
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(projects.core.designsystem)
+    implementation(projects.core.editor)
     implementation(projects.core.ui)
     implementation(projects.feature.browser)
+    implementation(projects.feature.editor)
     implementation(projects.feature.player)
+    implementation(libs.media3.common)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.serialization.json)
 }

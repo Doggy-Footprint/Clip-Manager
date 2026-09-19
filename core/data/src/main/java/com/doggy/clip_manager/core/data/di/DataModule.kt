@@ -1,7 +1,9 @@
 package com.doggy.clip_manager.core.data.di
 
 import com.doggy.clip_manager.core.data.repository.FileRepository
+import com.doggy.clip_manager.core.data.repository.ImageRepository
 import com.doggy.clip_manager.core.data.repository.LocalFileRepository
+import com.doggy.clip_manager.core.data.repository.MediaStoreImageRepository
 import com.doggy.clip_manager.core.data.repository.OfflineRecentPlaybackRepository
 import com.doggy.clip_manager.core.data.repository.RecentPlaybackRepository
 import dagger.Binds
@@ -14,6 +16,9 @@ import dagger.hilt.components.SingletonComponent
 internal interface DataModule {
     @Binds
     fun bindsFileRepository(repository: LocalFileRepository): FileRepository
+
+    @Binds
+    fun bindsImageRepository(repository: MediaStoreImageRepository): ImageRepository
 
     @Binds
     fun bindsRecentPlaybackRepository(repository: OfflineRecentPlaybackRepository): RecentPlaybackRepository

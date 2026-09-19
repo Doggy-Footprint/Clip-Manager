@@ -5,6 +5,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Audiotrack
 import androidx.compose.material.icons.rounded.Image
@@ -45,4 +46,5 @@ object ClipIcons {
     val Fullscreen = Icons.Rounded.Fullscreen
     val FullscreenExit = Icons.Rounded.FullscreenExit
     val MoreVert = Icons.Rounded.MoreVert
+    val Edit = Icons.Rounded.Edit
 }
