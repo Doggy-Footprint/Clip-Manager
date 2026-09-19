@@ -24,7 +24,7 @@ import androidx.compose.ui.res.stringResource
 import com.doggy.clip_manager.R
 import com.doggy.clip_manager.core.designsystem.icon.ClipIcons
 
-private enum class Category(val icon: ImageVector, @StringRes val label: Int) {
+enum class MediaTab(internal val icon: ImageVector, @StringRes internal val label: Int) {
     FILES(ClipIcons.Folder, R.string.tab_files),
     VIDEOS(ClipIcons.Video, R.string.tab_videos),
     AUDIO(ClipIcons.Audio, R.string.tab_audio),
@@ -32,17 +32,25 @@ private enum class Category(val icon: ImageVector, @StringRes val label: Int) {
 }
 
 @Composable
-fun TabLayer(compact: Boolean, modifier: Modifier = Modifier) {
-    var selected by rememberSaveable { mutableStateOf(Category.FILES.name) }
+fun TabLayer(
+    selected: MediaTab,
+    onSelect: (MediaTab) -> Unit,
+    compact: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    var dummySelection by rememberSaveable { mutableStateOf<String?>(null) }
 
     NavigationRail(modifier = modifier.fillMaxHeight().width(dimensionResource(if (compact) R.dimen.tab_layer_compact_width else R.dimen.tab_layer_width))) {
-        Category.entries.forEach { category ->
+        MediaTab.entries.forEach { tab ->
             RailItem(
-                icon = category.icon,
-                label = stringResource(category.label),
+                icon = tab.icon,
+                label = stringResource(tab.label),
                 compact = compact,
-                selected = selected == category.name,
-                onClick = { selected = category.name },
+                selected = dummySelection == null && selected == tab,
+                onClick = {
+                    dummySelection = null
+                    onSelect(tab)
+                },
             )
         }
         HorizontalDivider(Modifier.padding(vertical = dimensionResource(R.dimen.tab_layer_divider_padding)))
@@ -56,8 +64,8 @@ fun TabLayer(compact: Boolean, modifier: Modifier = Modifier) {
                 icon = ClipIcons.Tag,
                 label = tag,
                 compact = compact,
-                selected = selected == "#$tag",
-                onClick = { selected = "#$tag" },
+                selected = dummySelection == "#$tag",
+                onClick = { dummySelection = "#$tag" },
             )
         }
         HorizontalDivider(Modifier.padding(vertical = dimensionResource(R.dimen.tab_layer_divider_padding)))

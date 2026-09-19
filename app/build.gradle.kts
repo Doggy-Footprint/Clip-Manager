@@ -53,6 +53,7 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(projects.core.designsystem)
     implementation(projects.core.editor)
+    implementation(projects.core.model)
     implementation(projects.core.ui)
     implementation(projects.feature.browser)
     implementation(projects.feature.editor)

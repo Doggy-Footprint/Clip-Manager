@@ -5,4 +5,5 @@
     <string name="feature_browser_permission_action">권한 허용</string>
     <string name="feature_browser_empty_title">빈 폴더입니다</string>
     <string name="feature_browser_images_empty">이미지가 없습니다</string>
+    <string name="feature_browser_media_empty">표시할 미디어가 없습니다</string>
 </resources>

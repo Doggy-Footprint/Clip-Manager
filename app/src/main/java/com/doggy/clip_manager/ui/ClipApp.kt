@@ -21,9 +21,12 @@ import com.doggy.clip_manager.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.util.UnstableApi
 import com.doggy.clip_manager.feature.browser.BrowserScreenRoute
+import com.doggy.clip_manager.core.model.MediaKind
 import com.doggy.clip_manager.feature.browser.ImageGridRoute
+import com.doggy.clip_manager.feature.browser.MediaGridRoute
 import com.doggy.clip_manager.feature.editor.EditorPane
 import com.doggy.clip_manager.feature.editor.EditorViewModel
+import com.doggy.clip_manager.feature.player.ImageViewerPane
 import com.doggy.clip_manager.feature.player.PlayerPane
 
 private enum class LayerLayout { WIDE, THIN, PORTRAIT }
@@ -31,7 +34,10 @@ private enum class LayerLayout { WIDE, THIN, PORTRAIT }
 @UnstableApi
 @Composable
 fun ClipApp() {
+    var selectedTab by rememberSaveable { mutableStateOf(MediaTab.FILES) }
     var selectedPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedMediaUri by rememberSaveable { mutableStateOf<String?>(null) }
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     val editor: EditorViewModel = hiltViewModel()
 
@@ -42,6 +48,8 @@ fun ClipApp() {
             val viewer = @Composable { modifier: Modifier ->
                 if (editor.editing) {
                     EditorPane(viewModel = editor, modifier = modifier)
+                } else if (selectedImageUri != null) {
+                    ImageViewerPane(uri = selectedImageUri, modifier = modifier)
                 } else {
                     PlayerPane(
                         path = selectedPath,
@@ -64,16 +72,41 @@ fun ClipApp() {
                 else -> LayerLayout.WIDE
             }
             Row(Modifier.fillMaxSize()) {
-                TabLayer(compact = layout != LayerLayout.WIDE)
+                TabLayer(
+                    selected = selectedTab,
+                    onSelect = { selectedTab = it },
+                    compact = layout != LayerLayout.WIDE,
+                )
                 VerticalDivider()
                 val explorer = @Composable { modifier: Modifier ->
-                    if (editor.editing) {
-                        ImageGridRoute(onImageSelected = { editor.addImageOverlay(it) }, modifier = modifier)
-                    } else {
-                        BrowserScreenRoute(
-                            onOpenVideo = { selectedPath = it },
+                    when {
+                        editor.editing ->
+                            ImageGridRoute(onImageSelected = { editor.addImageOverlay(it) }, modifier = modifier)
+                        selectedTab == MediaTab.FILES -> BrowserScreenRoute(
+                            onOpenVideo = {
+                                selectedImageUri = null
+                                selectedPath = it
+                            },
                             selectedPath = selectedPath,
                             compact = layout == LayerLayout.THIN,
+                            modifier = modifier,
+                        )
+                        else -> MediaGridRoute(
+                            kind = when (selectedTab) {
+                                MediaTab.VIDEOS -> MediaKind.VIDEO
+                                MediaTab.AUDIO -> MediaKind.AUDIO
+                                else -> MediaKind.IMAGE
+                            },
+                            onEntrySelected = { entry ->
+                                if (entry.kind == MediaKind.IMAGE) {
+                                    selectedImageUri = entry.uri
+                                } else {
+                                    selectedImageUri = null
+                                    entry.filePath?.let { selectedPath = it }
+                                }
+                                selectedMediaUri = entry.uri
+                            },
+                            selectedUri = selectedMediaUri,
                             modifier = modifier,
                         )
                     }
