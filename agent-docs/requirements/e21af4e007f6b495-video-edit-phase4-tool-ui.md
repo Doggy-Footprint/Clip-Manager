@@ -37,5 +37,6 @@ Phase 1~3의 편집 엔진을 앱 화면에서 조작할 수 있는 최소 도�
 | E6 | 내보내기 진행 중 | `EditJobs.current`가 갱신되면 | 진행률과 `SlowState` 경고, 종료 상태가 표시된다 |
 
 ## Oracle
-- E1~E4: `feature/player` JVM 테스트 `EditorLogicTest`.
+- E1~E3, E4(`editorExportSpec`): `feature/editor` JVM 테스트 `EditorLogicTest`.
+- E4(`EditorViewModel.export` 배선): `feature/editor` Robolectric 테스트 `EditorViewModelTest`.
 - E5, E6: 에뮬레이터 수동 확인.

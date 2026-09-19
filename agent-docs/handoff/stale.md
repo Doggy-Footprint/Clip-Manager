@@ -36,3 +36,9 @@ Summary: Pending Phase 4 editor tool UI and explorer integration; lists the Phas
 Related Files: app/src/main/java/com/doggy/clip_manager/ui/ClipApp.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/OverlayPreviewPlayer.kt, feature/browser/src/main/java/com/doggy/clip_manager/feature/browser/ImageGridScreen.kt
 Related Symbols: ClipApp, OverlayEditSession, OverlayPreviewPlayer, ImageOverlayEditor, ImageGridScreen
 ---
+
+File: b84d0b34cae0af1d-editor-ui-module-split.md
+Summary: Decision and plan to extract the editor UI from :feature:player into a new :feature:editor module; engine already isolated in :core:editor
+Related Files: settings.gradle.kts, feature/player/build.gradle.kts, feature/player/src/main/java/com/doggy/clip_manager/feature/player/EditorPane.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/EditorToolPanel.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/EditorViewModel.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/EditorLogic.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/ImageOverlayEditor.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/OverlayPreviewPlayer.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/PlayerScreen.kt, app/src/main/java/com/doggy/clip_manager/ui/ClipApp.kt, feature/browser/src/main/java/com/doggy/clip_manager/feature/browser/ImageGridRoute.kt
+Related Symbols: EditorPane, EditorToolPanel, EditorViewModel, EditorLogic, ImageOverlayEditor, OverlayPreviewPlayer, PlayerPane, ClipApp, ImageGridRoute, AndroidFeatureConventionPlugin
+---

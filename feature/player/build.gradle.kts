@@ -9,7 +9,5 @@ android {
 
 dependencies {
     implementation(projects.core.player)
-    implementation(projects.core.editor)
-    implementation(libs.media3.transformer)
     testImplementation(libs.androidx.activity.compose)
 }

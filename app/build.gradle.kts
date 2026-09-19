@@ -55,6 +55,7 @@ dependencies {
     implementation(projects.core.editor)
     implementation(projects.core.ui)
     implementation(projects.feature.browser)
+    implementation(projects.feature.editor)
     implementation(projects.feature.player)
     implementation(libs.media3.common)
 

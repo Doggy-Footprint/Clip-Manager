@@ -22,8 +22,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.util.UnstableApi
 import com.doggy.clip_manager.feature.browser.BrowserScreenRoute
 import com.doggy.clip_manager.feature.browser.ImageGridRoute
-import com.doggy.clip_manager.feature.player.EditorPane
-import com.doggy.clip_manager.feature.player.EditorViewModel
+import com.doggy.clip_manager.feature.editor.EditorPane
+import com.doggy.clip_manager.feature.editor.EditorViewModel
 import com.doggy.clip_manager.feature.player.PlayerPane
 
 private enum class LayerLayout { WIDE, THIN, PORTRAIT }
