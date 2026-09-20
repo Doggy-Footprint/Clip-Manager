@@ -9,3 +9,12 @@ plugins {
     alias(libs.plugins.room) apply false
     alias(libs.plugins.roborazzi) apply false
 }
+
+// The project's pre-commit check lives in an untracked hooks directory, so a fresh clone would
+// otherwise commit without it until someone remembers to install it by hand.
+if (providers.gradleProperty("clip.skipHookInstall").orNull != "true") {
+    providers.exec {
+        commandLine("scripts/install-git-hooks.sh")
+        workingDir(rootDir)
+    }.result.orNull
+}
