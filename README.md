@@ -111,7 +111,7 @@ Failed to transform core-for-system-modules.jar ...
 
    테스트 영상은 [실기기 seek 측정](#실기기-seek-측정)의 방법으로 만들어 `adb push`로 넣습니다.
 
-에뮬레이터의 MediaCodec 디코더(`c2.goldfish.*`)는 물리 기기와 동작이 다릅니다. seek latency 수치는 물리 기기에서 측정하세요.
+에뮬레이터의 MediaCodec 디코더(`c2.goldfish.*`)는 물리 기기와 동작이 다릅니다.
 
 ## 릴리스 빌드
 
