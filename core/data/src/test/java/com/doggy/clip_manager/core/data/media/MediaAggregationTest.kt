@@ -115,4 +115,22 @@ class MediaAggregationTest {
 
         assertEquals(listOf(fromA), result)
     }
+
+    @Test
+    fun combine_C15_normal_filterAppliesToEverySourceNotOnlyTheFirst() {
+        // Each source carries one rejected entry, so applying the filter to results[0] alone would
+        // leave sourceB's rejected entry in the result.
+        val keptA = entry(uri = "v1", filePath = "/keep/a.mp4", displayName = "A", dateModifiedSeconds = 400)
+        val rejectedA = entry(uri = "v2", filePath = "/reject/b.mp4", displayName = "B", dateModifiedSeconds = 300)
+        val keptB = entry(uri = "v3", filePath = "/keep/c.mp4", displayName = "C", dateModifiedSeconds = 200)
+        val rejectedB = entry(uri = "v4", filePath = "/reject/d.mp4", displayName = "D", dateModifiedSeconds = 100)
+        val filter = MediaFilter { !(it.filePath ?: "").startsWith("/reject/") }
+
+        val result = MediaAggregation.combine(
+            listOf(listOf(keptA, rejectedA), listOf(keptB, rejectedB)),
+            setOf(filter),
+        )
+
+        assertEquals(listOf(keptA, keptB), result)
+    }
 }

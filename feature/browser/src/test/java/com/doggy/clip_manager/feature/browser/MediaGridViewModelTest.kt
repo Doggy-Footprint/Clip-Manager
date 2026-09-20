@@ -75,4 +75,24 @@ class MediaGridViewModelTest {
         assertEquals(audioEntries, state.entries)
         assertEquals(setOf(MediaKind.AUDIO), repository.queries.last().kinds)
     }
+
+    @Test
+    fun reload_C14_normal_reQueriesCurrentKindAndPicksUpChangedRepositoryResult() = runTest {
+        val repository = MutableMediaRepository(videoEntries)
+        val viewModel = MediaGridViewModel(repository)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        viewModel.setKind(MediaKind.VIDEO)
+        assertEquals(videoEntries, (viewModel.uiState.value as MediaGridUiState.Success).entries)
+
+        val updated = videoEntries + entry(uri = "v3", displayName = "clip3.mp4", kind = MediaKind.VIDEO)
+        repository.entries = updated
+        viewModel.reload()
+
+        assertEquals(updated, (viewModel.uiState.value as MediaGridUiState.Success).entries)
+    }
+
+    /** Returns whatever [entries] currently holds, so a test can change the answer between queries. */
+    private class MutableMediaRepository(var entries: List<MediaEntry>) : MediaRepository {
+        override suspend fun query(query: MediaQuery): List<MediaEntry> = entries
+    }
 }

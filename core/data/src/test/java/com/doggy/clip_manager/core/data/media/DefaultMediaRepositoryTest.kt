@@ -47,4 +47,39 @@ class DefaultMediaRepositoryTest {
 
         assertEquals(listOf(entry1, entry2), result)
     }
+
+    @Test
+    fun query_C16_normal_injectedFiltersAreAppliedToAggregatedResult() = runBlocking {
+        val keptA = entry(uri = "v1", filePath = "/keep/a.mp4", displayName = "A", dateModifiedSeconds = 400)
+        val rejectedA = entry(uri = "v2", filePath = "/reject/b.mp4", displayName = "B", dateModifiedSeconds = 300)
+        val keptB = entry(uri = "v3", filePath = "/keep/c.mp4", displayName = "C", dateModifiedSeconds = 200)
+        val rejectedB = entry(uri = "v4", filePath = "/reject/d.mp4", displayName = "D", dateModifiedSeconds = 100)
+        val filter = MediaFilter { !(it.filePath ?: "").startsWith("/reject/") }
+        val repository = DefaultMediaRepository(
+            sources = setOf(
+                HealthyMediaSource(listOf(keptA, rejectedA)),
+                HealthyMediaSource(listOf(keptB, rejectedB)),
+            ),
+            filters = setOf(filter),
+        )
+
+        val result = repository.query(MediaQuery(setOf(MediaKind.VIDEO)))
+
+        assertEquals(listOf(keptA, keptB), result)
+    }
+
+    private fun entry(
+        uri: String,
+        filePath: String?,
+        displayName: String,
+        dateModifiedSeconds: Long,
+    ) = MediaEntry(
+        uri = uri,
+        filePath = filePath,
+        displayName = displayName,
+        kind = MediaKind.VIDEO,
+        bucketName = null,
+        dateModifiedSeconds = dateModifiedSeconds,
+        durationMs = null,
+    )
 }

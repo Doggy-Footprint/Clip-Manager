@@ -18,24 +18,27 @@
 | attempt | failure evidence | cause |
 | 계약 v1 스위트로 결함 검출 | seed 3건(예외 흡수용 runCatching 제거 / 필터 all→any / dedup keep-last) 모두 스위트 green 유지 | 케이스 부재(예외 흡수 미검증, 필터 2개 조합 없음, 중복 테스트가 동일 값 사용) — verified |
 | 계약 v2로 C8 작성 | test-implementer가 C8 미작성, 챌린지 보고 | `# Signatures`에 `DefaultMediaRepository` 생성자가 없어 구현 파일을 열지 않고 인스턴스 생성 불가 — verified (v3에서 시그니처 추가로 해소) |
+| 계약 v5 스위트로 C17 seed 검출(1차 시도) | `!permissionGranted && uiState is Loading` 변형이 green 유지 | roborazzi가 verify 모드가 아니라 실행 때마다 골든을 덮어써 스크린샷 테스트가 구조적으로 실패 불가였음 — verified (`roborazzi.test.verify=true` 추가로 해소) |
 | 계약 v3 스위트로 2차 결함 검출 | seed 3건 모두 green: `reload()`를 no-op으로 만들기 / `MediaAggregation.combine`이 `results[0]`에만 필터 적용 / `DefaultMediaRepository`가 주입된 filters 대신 `emptySet()` 전달 | 세 가지 모두 대응 케이스가 계약에 없음. `reload()`는 시그니처에만 있고 단독 트리거 케이스 없음, 다중 소스 × 비어있지 않은 필터 조합 없음, C8이 `filters = emptySet()`로만 구성됨 — verified |
 
+## Progress (v4/v5 라운드)
+- 계약 v4: C14(reload 단독 재조회), C15(다중 소스 전체 필터 적용), C16(주입 필터 반영) 추가. 대응 테스트 작성 후 3개 seed 모두 RED 전환 확인.
+- test-verifier(v4) 지적 2건 → 계약 v5: C17(permissionGranted=false + Success), C18(selectedUri가 두 번째 항목) 추가. 골든 `MediaGridScreen_{permission_with_entries,selected_second}.png` 신규 기록.
+- roborazzi가 verify 없이 골든을 덮어쓰기만 해 스크린샷 테스트가 실패할 수 없는 상태였다. `gradle.properties`에 `roborazzi.test.verify=true` 추가(기록은 `-Proborazzi.test.record=true`). 이후 C17/C18 seed 모두 RED 확인.
+- 현재 전체 스위트 통과.
+
 ## Next Step
-계약을 v4로 개정해 아래 세 케이스를 추가하고 test-implementer를 이어서 실행한다(라운드 한도 초과 상태이므로 사용자 승인 후 진행):
-1. `reload()`가 유일한 트리거인 케이스 — 같은 kind로 저장소 응답이 바뀐 뒤 `reload()`만 호출했을 때 uiState가 새 결과로 갱신된다. 이때 `setKind`가 자체 조회를 수행하는지(현재 구현은 수행) 계약 본문에 명시해야 test-verifier가 지적한 모호성이 함께 해소된다.
-2. `MediaAggregation.combine(소스 2개 이상, 필터 1개 이상)` — 두 번째 소스의 항목도 필터링된다.
-3. `DefaultMediaRepository(sources 2개, filters 1개 이상)` — 주입된 필터가 결과에 실제로 반영된다.
-각 케이스 추가 후 해당 seed(위 Failed Attempts 3행의 세 변형)가 반드시 실패로 바뀌는지 `python3 .harness/bin/seed.py` 로 재확인한다.
+계약 v5 스위트에 대해 test-verifier를 한 번 더 실행해 C17/C18 추가분과 `roborazzi.test.verify=true` 이후의 스크린샷 커버리지를 감사한다(라운드 한도 초과 상태이므로 사용자 승인 후 진행). 지적이 없으면 이 핸드오프를 stale 처리한다.
 
 ## Open Questions
 - `MediaStoreMediaSource`의 커서 파싱(DATA/DURATION/BUCKET 컬럼 누락, API 29 미만 경로)은 이번 계약에서 명시적으로 범위 밖. 별도 계약으로 다룰지 미정.
 - I3(클릭 시 kind별 절대경로/content URI 전달)은 app 모듈 배선이라 이 스위트 범위 밖으로 반려했고, 수동 확인만 남아 있음.
 
 ## Contract Snapshot
-`agent-docs/contracts/media-grid.md` v3 (세션 종료 시 삭제됨). 내용 요약이 아니라 전문:
+`agent-docs/contracts/media-grid.md` v5 (세션 종료 시 삭제됨). 내용 요약이 아니라 전문:
 
 ---
-version: 3
+version: 5
 ---
 
 # User Intent
@@ -67,6 +70,7 @@ internal class DefaultMediaRepository @Inject constructor(private val sources: S
 package com.doggy.clip_manager.feature.browser
 sealed interface MediaGridUiState { data object Loading; data class Success(val entries: List<MediaEntry>) }
 class MediaGridViewModel(mediaRepository: MediaRepository) : ViewModel  // val uiState: StateFlow<MediaGridUiState>; fun setKind(newKind: MediaKind); fun reload()
+// setKind는 kind를 바꾸면서 그 자체로 새 조회를 트리거한다. reload()는 kind를 바꾸지 않고 현재 kind로 다시 조회한다.
 internal fun MediaGridScreen(uiState: MediaGridUiState, permissionGranted: Boolean, onRequestPermission: () -> Unit, onEntryClick: (MediaEntry) -> Unit, modifier: Modifier = Modifier, selectedUri: String? = null)
 
 # Errors
@@ -87,8 +91,20 @@ MediaRepository.query는 예외를 던지지 않는다. 개별 MediaSource.query
 | C11 | edge | combine(단일 소스, 모든 항목을 거부하는 필터) | 빈 목록이 반환된다 |
 | C12 | normal | combine(단일 소스, 서로 다른 조건의 필터 2개) | 두 필터를 모두 통과한 항목만 남는다(한쪽만 통과한 항목은 제외된다) |
 | C13 | edge | combine(소스 A와 소스 B에 uri는 같고 displayName/dateModifiedSeconds가 다른 항목이 각각 존재, results 순서는 [A, B]) | 해당 uri는 한 번만 남고, 남는 항목은 먼저 등장한 소스 A의 항목이다 |
+| C14 | normal | setKind(VIDEO)로 초기 조회를 마친 뒤 저장소가 같은 VIDEO kind에 대해 다른 목록을 돌려주도록 바뀐 상태에서 reload()만 호출 | uiState가 바뀐 새 목록으로 갱신된다(reload가 단독으로 재조회를 트리거한다) |
+| C15 | normal | combine(소스 2개, 필터 1개 이상) — 두 소스 모두에 필터가 거부할 항목이 들어 있음 | 두 소스 모두에서 거부 항목이 제거된다(첫 소스에만 필터가 적용되지 않는다) |
+| C16 | normal | DefaultMediaRepository(소스 2개, 항목 일부를 거부하는 필터 1개 이상).query(...) | 주입된 필터가 적용된 결과가 반환된다(필터가 무시되지 않는다) |
+| C17 | edge | MediaGridScreen(Success(항목 3건), permissionGranted=false) | 목록이 아니라 권한 요청 UI가 렌더링된다(로드된 목록이 남아 있어도 권한 미허용이 우선한다) (골든 이미지) |
+| C18 | normal | MediaGridScreen(Success(항목 3건), permissionGranted=true, selectedUri=두 번째 항목) | 첫 항목이 아니라 selectedUri가 가리키는 두 번째 항목만 강조된다 (골든 이미지) |
 
 # Version Log
+## v5
+- test-verifier 지적 2건 반영: (1) `permissionGranted=false`가 `Loading`과만 조합돼 "Success일 때는 그리드를 보여주는" 변형이 통과함 → C17 추가, (2) C5의 `selectedUri`가 첫 항목이라 "항상 index 0을 강조"하는 변형이 골든과 동일 출력을 내 통과함 → C18 추가.
+
+## v4
+- 라운드 3차 seed 검증에서 통과해버린 세 변형(`reload()` no-op / `combine`이 `results[0]`에만 필터 적용 / `DefaultMediaRepository`가 주입된 filters 대신 `emptySet()` 전달)에 대응해 C14, C15, C16 추가.
+- test-verifier가 지적한 모호성 해소: `setKind`가 자체적으로 조회를 트리거한다는 점을 # Signatures 주석에 명시.
+
 ## v3
 - test-implementer가 C8을 작성할 수 없다고 보고: # Errors와 C8이 DefaultMediaRepository를 지목하는데 # Signatures에 그 생성자가 없어 구현 파일을 열지 않고는 인스턴스를 만들 수 없었다. 생성자 선언을 # Signatures에 추가.
 

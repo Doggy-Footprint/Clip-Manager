@@ -85,6 +85,29 @@ class MediaGridScreenScreenshotTest {
         )
     }
 
+    @Test
+    fun permissionRequiredOverLoadedEntries_C17_edge() = capture("permission_with_entries") {
+        MediaGridScreen(
+            uiState = MediaGridUiState.Success(listOf(videoEntry, audioEntry, imageEntry)),
+            permissionGranted = false,
+            onRequestPermission = {},
+            onEntryClick = {},
+        )
+    }
+
+    // selectedUri points at the second entry so a "always highlight index 0" implementation
+    // produces a different image than this golden.
+    @Test
+    fun selectionFollowsSelectedUri_C18_normal() = capture("selected_second") {
+        MediaGridScreen(
+            uiState = MediaGridUiState.Success(listOf(videoEntry, audioEntry, imageEntry)),
+            permissionGranted = true,
+            onRequestPermission = {},
+            onEntryClick = {},
+            selectedUri = audioEntry.uri,
+        )
+    }
+
     private fun capture(name: String, content: @Composable () -> Unit) {
         composeTestRule.setContent {
             ClipTheme(dynamicColor = false) { Surface { content() } }
