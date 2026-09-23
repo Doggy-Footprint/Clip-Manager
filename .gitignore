@@ -1,7 +1,5 @@
 .env
 ref/
-agent-docs/contracts/.running/
-agent-docs/contracts/.seed/
 .harness/sessions/.running/
 .harness/**/__pycache__
 .DS_Store
@@ -16,3 +14,6 @@ keystore.properties
 
 # Eclipse/IDE compile output; the Gradle build writes these
 bin/
+agent-docs/specs/.active
+agent-docs/specs/.running/
+agent-docs/specs/.seed/
