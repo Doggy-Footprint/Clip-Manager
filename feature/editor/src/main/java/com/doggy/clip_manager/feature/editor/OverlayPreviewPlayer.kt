@@ -1,50 +1,47 @@
 package com.doggy.clip_manager.feature.editor
 
 import android.content.Context
-import android.net.Uri
+import android.media.MediaMetadataRetriever
 import android.view.Surface
-import androidx.media3.common.Effect
-import androidx.media3.common.MediaItem
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.CompositionPlayer
-import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
-import androidx.media3.transformer.Effects
-import com.doggy.clip_manager.core.editor.EditPlanner
-import com.doggy.clip_manager.core.editor.OverlayCompositionFactory
-import com.doggy.clip_manager.core.editor.OverlaySpec
+import com.doggy.clip_manager.core.editor.EditSpec
+import com.doggy.clip_manager.core.editor.EditedMediaItemFactory
 import java.io.File
 
 /**
- * Renders Phase 3 overlays over the untouched source so the user can place them. Cut, aspect,
- * flip and speed are not applied here, so preview duration equals the input duration.
+ * Plays the same [EditSpec] export uses: cut, aspect, flip, speed and overlays all come from
+ * [EditedMediaItemFactory] (`buildPreview`), the core/editor code that also computes crop/flip/
+ * speed for [PreciseTransformEditor]'s export, so the preview cannot diverge from the exported
+ * file (F9/Q4). The item shape differs from export's, though: `buildPreview` emits one
+ * [androidx.media3.transformer.EditedMediaItem] per keep range with time-varying flip/speed
+ * effects, instead of export's one item per cut/flip/speed segment, because `CompositionPlayer`
+ * (media3 1.11.1) freezes video after the first item once a sequence holds several items with
+ * differing effects.
  */
 @UnstableApi
 class OverlayPreviewPlayer(private val context: Context) {
     private var player: CompositionPlayer? = null
 
-    fun show(inputPath: String, durationUs: Long, overlays: List<OverlaySpec>, surface: Surface, size: Size): Result<Unit> =
+    fun show(spec: EditSpec, durationUs: Long, surface: Surface, size: Size): Result<Unit> =
         runCatching {
-            val input = File(inputPath)
-            require(input.isFile) { "input does not exist: $inputPath" }
-            // Same clipping the export path applies, so a placed overlay shows the same span here.
-            val normalized = EditPlanner.normalizeOutputOverlays(durationUs, overlays)
-            val videoEffects: List<Effect> = OverlayCompositionFactory(context).create(normalized)
+            val input = File(spec.inputPath)
+            require(input.isFile) { "input does not exist: ${spec.inputPath}" }
+            val (sourceWidth, sourceHeight) = probeSize(spec.inputPath)
+            val items = EditedMediaItemFactory.buildPreview(
+                context = context,
+                inputPath = spec.inputPath,
+                durationUs = durationUs,
+                keepRanges = spec.keepRanges,
+                effects = spec.effects,
+                sourceWidth = sourceWidth,
+                sourceHeight = sourceHeight,
+            )
             release()
-            val composition = Composition.Builder(
-                listOf(
-                    EditedMediaItemSequence.Builder(
-                        // CompositionPlayer asks each item for its presentation duration before playback
-                        // and fails if the item was never given one, so durationUs is required here.
-                        EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(input)))
-                            .setDurationUs(durationUs)
-                            .setEffects(Effects(emptyList(), videoEffects))
-                            .build(),
-                    ).build(),
-                ),
-            ).build()
+            val composition = Composition.Builder(listOf(EditedMediaItemSequence.Builder(items).build())).build()
             CompositionPlayer.Builder(context).build().also {
                 player = it
                 it.setVideoSurface(surface, size)
@@ -58,5 +55,17 @@ class OverlayPreviewPlayer(private val context: Context) {
     fun release() {
         player?.release()
         player = null
+    }
+
+    private fun probeSize(inputPath: String): Pair<Int, Int> {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(inputPath)
+            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            return width to height
+        } finally {
+            retriever.release()
+        }
     }
 }

@@ -179,6 +179,46 @@ object EditPlanner {
     internal fun outputDurationUs(segments: List<EditSegment>): Long =
         segments.sumOf { segment -> ((segment.range.endUs - segment.range.startUs) / segment.speed).toLong() }
 
+    /** Same parity rule [plan] uses per segment, exposed so the preview's time-based flip effect can share it (Q4). */
+    internal fun flipAt(flips: List<FlipRange>, timeUs: Long): Pair<Boolean, Boolean> {
+        val matching = flips.filter { timeUs >= it.range.startUs && timeUs < it.range.endUs }
+        return (matching.count { it.horizontal } % 2 == 1) to (matching.count { it.vertical } % 2 == 1)
+    }
+
+    /** [keepRange] split at [speeds] boundaries, with implicit 1x in the gaps; ranges stay on the source timeline. */
+    internal fun speedSegments(keepRange: TimeRange, speeds: List<SpeedRange>): List<Pair<TimeRange, Float>> {
+        val boundaries = buildSet {
+            add(keepRange.startUs)
+            add(keepRange.endUs)
+            speeds.forEach { intersect(it.range, keepRange)?.let { overlap -> add(overlap.startUs); add(overlap.endUs) } }
+        }.sorted()
+        return boundaries.zipWithNext().map { (start, end) ->
+            val sample = TimeRange(start, end)
+            val speed = speeds.firstOrNull { intersect(it.range, sample) != null }?.speed ?: 1f
+            sample to speed
+        }
+    }
+
+    /**
+     * Inverse of the speed mapping [speedSegments] describes: [outputTimeUs] is 0-based on the
+     * keep-relative *output* (post-speed) timeline `createExperimentalSpeedChangingEffect` produces,
+     * and the result is the source-timeline time it corresponds to. CompositionPlayer (media3
+     * 1.11.1) requires that speed effect to be the first video effect, so anything placed after it
+     * (e.g. the preview's time-based flip) only ever sees output time and must invert back to
+     * source time itself to know which flip range applies (F9).
+     */
+    internal fun sourceTimeForOutput(keepRange: TimeRange, speeds: List<SpeedRange>, outputTimeUs: Long): Long {
+        var cumulativeOutputUs = 0L
+        for ((range, speed) in speedSegments(keepRange, speeds)) {
+            val segmentOutputUs = ((range.endUs - range.startUs) / speed).toLong()
+            if (outputTimeUs < cumulativeOutputUs + segmentOutputUs) {
+                return range.startUs + ((outputTimeUs - cumulativeOutputUs) * speed).toLong()
+            }
+            cumulativeOutputUs += segmentOutputUs
+        }
+        return keepRange.endUs
+    }
+
     internal fun outputSize(sourceWidth: Int, sourceHeight: Int, layout: FrameLayout): OutputSize {
         if (layout is FrameLayout.Original) return OutputSize(sourceWidth, sourceHeight)
         val ratio = layout as FrameLayout.Ratio

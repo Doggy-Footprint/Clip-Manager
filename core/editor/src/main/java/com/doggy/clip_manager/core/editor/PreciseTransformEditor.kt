@@ -4,13 +4,9 @@ import android.content.Context
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.effect.ScaleAndRotateTransformation
-import androidx.media3.effect.Crop
-import androidx.media3.effect.Presentation
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
-import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
@@ -90,91 +86,11 @@ internal object PreciseTransformEditor {
         overlays: List<OverlaySpec>,
         outputOffsetStartUs: Long,
     ): Composition {
-        val overlayFactory = OverlayCompositionFactory(context)
-        var outputOffsetUs = outputOffsetStartUs
-        val items = segments.map { segment ->
-            val mediaItem = MediaItem.Builder()
-                .setUri(Uri.fromFile(File(inputPath)))
-                .setClippingConfiguration(
-                    MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionUs(segment.range.startUs)
-                        .setEndPositionUs(segment.range.endUs)
-                        .build(),
-                )
-                .build()
-            val segmentOutUs = ((segment.range.endUs - segment.range.startUs) / segment.speed).toLong()
-            val segmentStartUs = outputOffsetUs
-            val videoEffects = buildVideoEffects(frameLayout, sourceWidth, sourceHeight, segment) +
-                overlayFactory.create(
-                    overlays.mapNotNull { overlay ->
-                        val start = maxOf(0L, overlay.range.startUs - segmentStartUs)
-                        val end = minOf(segmentOutUs, overlay.range.endUs - segmentStartUs)
-                        if (start < end) overlay.withRange(TimeRange(start, end)) else null
-                    },
-                )
-            val builder = EditedMediaItem.Builder(mediaItem)
-                .setEffects(Effects(emptyList(), videoEffects))
-            if (segment.speed != 1f) {
-                builder.setSpeed(
-                    androidx.media3.common.SpeedParameters(
-                        object : androidx.media3.common.audio.SpeedProvider {
-                            override fun getSpeed(timeUs: Long): Float = segment.speed
-
-                            override fun getNextSpeedChangeTimeUs(timeUs: Long): Long = androidx.media3.common.C.TIME_UNSET
-                        },
-                        true,
-                    ),
-                )
-            }
-            outputOffsetUs += segmentOutUs
-            builder.build()
-        }
+        val items = EditedMediaItemFactory.buildItems(
+            context, inputPath, segments, frameLayout, sourceWidth, sourceHeight, overlays, outputOffsetStartUs,
+        )
         val sequence = EditedMediaItemSequence.Builder(items).build()
         return Composition.Builder(listOf(sequence)).build()
-    }
-
-    private fun buildVideoEffects(
-        frameLayout: FrameLayout,
-        sourceWidth: Int,
-        sourceHeight: Int,
-        segment: EditSegment,
-    ): List<androidx.media3.common.Effect> {
-        val effects = mutableListOf<androidx.media3.common.Effect>()
-        when (frameLayout) {
-            FrameLayout.Original -> Unit
-            is FrameLayout.Ratio -> {
-                val output = EditPlanner.outputSize(sourceWidth, sourceHeight, frameLayout)
-                when (frameLayout.mode) {
-                    FrameMode.CROP -> {
-                        val sourceAspect = sourceWidth.toFloat() / sourceHeight
-                        val targetAspect = output.width.toFloat() / output.height
-                        val cropWidth = minOf(1f, targetAspect / sourceAspect)
-                        val cropHeight = minOf(1f, sourceAspect / targetAspect)
-                        val centerX = frameLayout.cropCenter.x.coerceIn(cropWidth / 2f, 1f - cropWidth / 2f)
-                        val centerY = frameLayout.cropCenter.y.coerceIn(cropHeight / 2f, 1f - cropHeight / 2f)
-                        effects += Crop(
-                            2f * (centerX - cropWidth / 2f) - 1f,
-                            2f * (centerX + cropWidth / 2f) - 1f,
-                            2f * (centerY - cropHeight / 2f) - 1f,
-                            2f * (centerY + cropHeight / 2f) - 1f,
-                        )
-                        effects += Presentation.createForWidthAndHeight(
-                            output.width, output.height, Presentation.LAYOUT_STRETCH_TO_FIT,
-                        )
-                    }
-                    FrameMode.STRETCH -> effects += Presentation.createForWidthAndHeight(
-                        output.width, output.height, Presentation.LAYOUT_STRETCH_TO_FIT,
-                    )
-                    FrameMode.FIT -> effects += Presentation.createForWidthAndHeight(
-                        output.width, output.height, Presentation.LAYOUT_SCALE_TO_FIT,
-                    )
-                }
-            }
-        }
-        effects += ScaleAndRotateTransformation.Builder()
-            .setScale(if (segment.horizontalFlip) -1f else 1f, if (segment.verticalFlip) -1f else 1f)
-            .build()
-        return effects
     }
 
     private fun buildPassthroughComposition(segmentFiles: List<File>): Composition {

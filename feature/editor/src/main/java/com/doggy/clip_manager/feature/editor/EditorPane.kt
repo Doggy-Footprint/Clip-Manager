@@ -32,10 +32,27 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
 import com.doggy.clip_manager.core.designsystem.theme.ClipTheme
+import com.doggy.clip_manager.core.editor.CutMode
+import com.doggy.clip_manager.core.editor.FlipRange
+import com.doggy.clip_manager.core.editor.FrameLayout
 import com.doggy.clip_manager.core.editor.ImageOverlay
+import com.doggy.clip_manager.core.editor.SpeedRange
+import com.doggy.clip_manager.core.editor.TimeRange
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+
+/** Snapshot of every VM field the preview must react to, so [snapshotFlow] observes them all at once. */
+private data class EditorPreviewSnapshot(
+    val path: String?,
+    val durationUs: Long,
+    val target: Pair<Surface?, Size>,
+    val selection: TimeRange,
+    val cutMode: CutMode,
+    val frameLayout: FrameLayout,
+    val flips: List<FlipRange>,
+    val speeds: List<SpeedRange>,
+)
 
 /**
  * Editing replaces the playback surface: [OverlayPreviewPlayer] owns its own [SurfaceView] rather
@@ -62,15 +79,27 @@ fun EditorPane(
     @OptIn(FlowPreview::class)
     LaunchedEffect(preview) {
         // Every rebuild tears down and recreates CompositionPlayer, so a drag or a keystroke must
-        // not refresh the preview per event.
+        // not refresh the preview per event. Effect fields are read here so a ratio/flip/speed
+        // change rebuilds the preview the same way an overlay change does (F9).
         combine(
-            snapshotFlow { Triple(viewModel.path, viewModel.durationUs, surface to surfaceSize) },
+            snapshotFlow {
+                EditorPreviewSnapshot(
+                    path = viewModel.path,
+                    durationUs = viewModel.durationUs,
+                    target = surface to surfaceSize,
+                    selection = viewModel.selection,
+                    cutMode = viewModel.cutMode,
+                    frameLayout = viewModel.frameLayout,
+                    flips = viewModel.flips,
+                    speeds = viewModel.speeds,
+                )
+            },
             viewModel.overlays,
-        ) { source, list -> source to list }.debounce(PREVIEW_REFRESH_DEBOUNCE_MS).collect { (source, list) ->
-            val (inputPath, durationUs, target) = source
-            val (currentSurface, size) = target
-            if (inputPath == null || currentSurface == null || size.width == 0 || durationUs <= 0L) return@collect
-            previewError = preview.show(inputPath, durationUs, list, currentSurface, size).isFailure
+        ) { snapshot, _ -> snapshot }.debounce(PREVIEW_REFRESH_DEBOUNCE_MS).collect { snapshot ->
+            val (currentSurface, size) = snapshot.target
+            if (snapshot.path == null || currentSurface == null || size.width == 0 || snapshot.durationUs <= 0L) return@collect
+            val spec = viewModel.exportSpec() ?: return@collect
+            previewError = preview.show(spec, snapshot.durationUs, currentSurface, size).isFailure
         }
     }
 

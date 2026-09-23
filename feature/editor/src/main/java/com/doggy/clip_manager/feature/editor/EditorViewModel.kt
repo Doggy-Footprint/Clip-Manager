@@ -8,11 +8,16 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.doggy.clip_manager.core.editor.CutMode
 import com.doggy.clip_manager.core.editor.EditJobs
+import com.doggy.clip_manager.core.editor.EditSpec
 import com.doggy.clip_manager.core.editor.EditState
+import com.doggy.clip_manager.core.editor.FlipRange
+import com.doggy.clip_manager.core.editor.FrameLayout
+import com.doggy.clip_manager.core.editor.FrameMode
 import com.doggy.clip_manager.core.editor.ImageOverlay
 import com.doggy.clip_manager.core.editor.InvalidEffectException
 import com.doggy.clip_manager.core.editor.OverlayEditSession
 import com.doggy.clip_manager.core.editor.OverlaySpec
+import com.doggy.clip_manager.core.editor.SpeedRange
 import com.doggy.clip_manager.core.editor.TextOverlay
 import com.doggy.clip_manager.core.editor.TimeRange
 import com.doggy.clip_manager.core.model.ImageAsset
@@ -49,6 +54,16 @@ class EditorViewModel @Inject constructor() : ViewModel() {
         private set
     var exportState: EditState by mutableStateOf(EditState.Idle)
         private set
+    internal var ratioPreset: RatioPreset by mutableStateOf(RatioPreset.ORIGINAL)
+        private set
+    var frameMode: FrameMode by mutableStateOf(FrameMode.CROP)
+        private set
+    val frameLayout: FrameLayout
+        get() = frameLayoutOf(ratioPreset, frameMode)
+    var flips: List<FlipRange> by mutableStateOf(emptyList())
+        private set
+    var speeds: List<SpeedRange> by mutableStateOf(emptyList())
+        private set
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private val jobStates = EditJobs.current.flatMapLatest { it?.state ?: flowOf(EditState.Idle) }
@@ -64,6 +79,10 @@ class EditorViewModel @Inject constructor() : ViewModel() {
             this.path = path
             this.durationUs = durationUs
             selection = defaultSelection(durationUs)
+            ratioPreset = RatioPreset.ORIGINAL
+            frameMode = FrameMode.CROP
+            flips = emptyList()
+            speeds = emptyList()
         }
         editing = true
     }
@@ -78,6 +97,55 @@ class EditorViewModel @Inject constructor() : ViewModel() {
 
     fun chooseCutMode(mode: CutMode) {
         cutMode = mode
+    }
+
+    internal fun chooseRatio(preset: RatioPreset) {
+        ratioPreset = preset
+    }
+
+    fun chooseFrameMode(mode: FrameMode) {
+        frameMode = mode
+    }
+
+    fun addSpeed(speed: Float): Boolean {
+        if (speed !in SPEED_STEPS) return false
+        val candidate = SpeedRange(clampSelection(durationUs, selection.startUs, selection.endUs), speed)
+        val updated = speeds + candidate
+        if (speedsOverlap(updated)) return false
+        speeds = updated
+        return true
+    }
+
+    fun updateSpeed(index: Int, value: SpeedRange): Boolean {
+        if (index !in speeds.indices || value.speed !in SPEED_STEPS) return false
+        val clamped = value.copy(range = clampSelection(durationUs, value.range.startUs, value.range.endUs))
+        val updated = speeds.toMutableList().also { it[index] = clamped }
+        if (speedsOverlap(updated)) return false
+        speeds = updated
+        return true
+    }
+
+    fun removeSpeed(index: Int) {
+        if (index !in speeds.indices) return
+        speeds = speeds.toMutableList().also { it.removeAt(index) }
+    }
+
+    fun addFlip(horizontal: Boolean, vertical: Boolean): Boolean {
+        if (!horizontal && !vertical) return false
+        flips = flips + FlipRange(clampSelection(durationUs, selection.startUs, selection.endUs), horizontal, vertical)
+        return true
+    }
+
+    fun updateFlip(index: Int, value: FlipRange): Boolean {
+        if (index !in flips.indices || (!value.horizontal && !value.vertical)) return false
+        val clamped = value.copy(range = clampSelection(durationUs, value.range.startUs, value.range.endUs))
+        flips = flips.toMutableList().also { it[index] = clamped }
+        return true
+    }
+
+    fun removeFlip(index: Int) {
+        if (index !in flips.indices) return
+        flips = flips.toMutableList().also { it.removeAt(index) }
     }
 
     fun select(id: String?) {
@@ -108,8 +176,8 @@ class EditorViewModel @Inject constructor() : ViewModel() {
         if (selectedOverlayId == id) selectedOverlayId = null
     }
 
-    fun exportSpec(): com.doggy.clip_manager.core.editor.EditSpec? {
+    fun exportSpec(): EditSpec? {
         val input = path ?: return null
-        return editorExportSpec(input, selection, cutMode, overlays.value)
+        return editorExportSpec(input, selection, cutMode, overlays.value, frameLayout, flips, speeds)
     }
 }

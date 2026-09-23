@@ -22,4 +22,21 @@
     <string name="feature_editor_cancelled">취소됨</string>
     <string name="feature_editor_slow">예상보다 오래 걸리고 있습니다</string>
     <string name="feature_editor_stalled">진행이 멈춘 것으로 보입니다</string>
+    <string name="feature_editor_ratio_original">원본</string>
+    <string name="feature_editor_ratio_square">1:1</string>
+    <string name="feature_editor_ratio_wide">16:9</string>
+    <string name="feature_editor_ratio_tall">9:16</string>
+    <string name="feature_editor_ratio_classic">4:3</string>
+    <string name="feature_editor_mode_crop">채우기</string>
+    <string name="feature_editor_mode_fit">맞추기</string>
+    <string name="feature_editor_mode_stretch">늘리기</string>
+    <string name="feature_editor_speed_section">배속 구간</string>
+    <string name="feature_editor_speed_add">배속 추가</string>
+    <string name="feature_editor_speed_item">%1$.2fx (%2$s~%3$s)</string>
+    <string name="feature_editor_speed_step">%1$.2fx</string>
+    <string name="feature_editor_flip_section">반전 구간</string>
+    <string name="feature_editor_flip_add">반전 추가</string>
+    <string name="feature_editor_flip_item">%1$s~%2$s</string>
+    <string name="feature_editor_flip_horizontal">좌우</string>
+    <string name="feature_editor_flip_vertical">상하</string>
 </resources>

@@ -2,6 +2,7 @@ package com.doggy.clip_manager.feature.editor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,6 +11,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
@@ -21,6 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.colorResource
@@ -32,10 +38,14 @@ import androidx.compose.ui.platform.LocalContext
 import com.doggy.clip_manager.core.editor.CutMode
 import com.doggy.clip_manager.core.editor.EditService
 import com.doggy.clip_manager.core.editor.EditState
+import com.doggy.clip_manager.core.editor.FlipRange
+import com.doggy.clip_manager.core.editor.FrameMode
 import com.doggy.clip_manager.core.editor.ImageOverlay
 import com.doggy.clip_manager.core.editor.OverlaySpec
 import com.doggy.clip_manager.core.editor.SlowState
+import com.doggy.clip_manager.core.editor.SpeedRange
 import com.doggy.clip_manager.core.editor.TextOverlay
+import com.doggy.clip_manager.core.editor.TimeRange
 import com.doggy.clip_manager.core.ui.formatTime
 
 private const val US_PER_MS = 1_000L
@@ -70,14 +80,11 @@ internal fun EditorToolPanel(
             color = contentColor,
             style = MaterialTheme.typography.bodySmall,
         )
-        RangeSlider(
-            value = (selection.startUs / US_PER_MS).toFloat()..(selection.endUs / US_PER_MS).toFloat(),
-            valueRange = 0f..maxOf(durationMs, 1f),
+        EditorRangeSlider(
+            range = selection,
+            durationUs = viewModel.durationUs,
             enabled = viewModel.durationUs > 0L,
-            onValueChange = { range ->
-                viewModel.setSelection(range.start.toLong() * US_PER_MS, range.endInclusive.toLong() * US_PER_MS)
-            },
-            modifier = Modifier.fillMaxWidth(),
+            onRangeChange = { start, end -> viewModel.setSelection(start, end) },
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(padding), verticalAlignment = Alignment.CenterVertically) {
@@ -101,6 +108,31 @@ internal fun EditorToolPanel(
                 label = { Text(stringResource(R.string.feature_editor_add_text)) },
             )
         }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(padding), verticalAlignment = Alignment.CenterVertically) {
+            RatioPreset.entries.forEach { preset ->
+                FilterChip(
+                    selected = viewModel.ratioPreset == preset,
+                    onClick = { viewModel.chooseRatio(preset) },
+                    label = { Text(stringResource(ratioLabel(preset))) },
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(padding), verticalAlignment = Alignment.CenterVertically) {
+            FrameMode.entries.forEach { mode ->
+                FilterChip(
+                    selected = viewModel.frameMode == mode,
+                    onClick = { viewModel.chooseFrameMode(mode) },
+                    // ORIGINAL ignores frameMode (F1), so the chips stay visible but inert rather
+                    // than being hidden and shifting the panel layout.
+                    enabled = viewModel.ratioPreset != RatioPreset.ORIGINAL,
+                    label = { Text(stringResource(frameModeLabel(mode))) },
+                )
+            }
+        }
+
+        SpeedSection(viewModel, contentColor, padding)
+        FlipSection(viewModel, contentColor, padding)
 
         overlays.forEach { overlay ->
             OverlayRow(
@@ -224,6 +256,187 @@ private fun exportStatus(state: EditState): String = when (state) {
     is EditState.Completed -> stringResource(R.string.feature_editor_completed, state.outputPath)
     is EditState.Failed -> stringResource(R.string.feature_editor_failed, state.error::class.java.simpleName)
     EditState.Cancelled -> stringResource(R.string.feature_editor_cancelled)
+}
+
+private fun ratioLabel(preset: RatioPreset): Int = when (preset) {
+    RatioPreset.ORIGINAL -> R.string.feature_editor_ratio_original
+    RatioPreset.SQUARE -> R.string.feature_editor_ratio_square
+    RatioPreset.WIDE -> R.string.feature_editor_ratio_wide
+    RatioPreset.TALL -> R.string.feature_editor_ratio_tall
+    RatioPreset.CLASSIC -> R.string.feature_editor_ratio_classic
+}
+
+private fun frameModeLabel(mode: FrameMode): Int = when (mode) {
+    FrameMode.CROP -> R.string.feature_editor_mode_crop
+    FrameMode.FIT -> R.string.feature_editor_mode_fit
+    FrameMode.STRETCH -> R.string.feature_editor_mode_stretch
+}
+
+/** Reused by the selection range and by each speed/flip range row so they share one slider behaviour. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditorRangeSlider(
+    range: TimeRange,
+    durationUs: Long,
+    enabled: Boolean,
+    onRangeChange: (startUs: Long, endUs: Long) -> Unit,
+) {
+    val durationMs = (durationUs / US_PER_MS).toFloat()
+    RangeSlider(
+        value = (range.startUs / US_PER_MS).toFloat()..(range.endUs / US_PER_MS).toFloat(),
+        valueRange = 0f..maxOf(durationMs, 1f),
+        enabled = enabled,
+        onValueChange = { value -> onRangeChange(value.start.toLong() * US_PER_MS, value.endInclusive.toLong() * US_PER_MS) },
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SpeedSection(
+    viewModel: EditorViewModel,
+    contentColor: androidx.compose.ui.graphics.Color,
+    padding: androidx.compose.ui.unit.Dp,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(padding)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.feature_editor_speed_section),
+                color = contentColor,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f),
+            )
+            AssistChip(
+                onClick = { viewModel.addSpeed(1f) },
+                label = { Text(stringResource(R.string.feature_editor_speed_add)) },
+            )
+        }
+        viewModel.speeds.forEachIndexed { index, speedRange ->
+            SpeedRow(
+                speedRange = speedRange,
+                durationUs = viewModel.durationUs,
+                contentColor = contentColor,
+                onRangeChange = { start, end -> viewModel.updateSpeed(index, speedRange.copy(range = TimeRange(start, end))) },
+                onSpeedChange = { speed -> viewModel.updateSpeed(index, speedRange.copy(speed = speed)) },
+                onRemove = { viewModel.removeSpeed(index) },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SpeedRow(
+    speedRange: SpeedRange,
+    durationUs: Long,
+    contentColor: androidx.compose.ui.graphics.Color,
+    onRangeChange: (startUs: Long, endUs: Long) -> Unit,
+    onSpeedChange: (Float) -> Unit,
+    onRemove: () -> Unit,
+) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            var expanded by remember { mutableStateOf(false) }
+            Box(modifier = Modifier.weight(1f)) {
+                TextButton(onClick = { expanded = true }) {
+                    Text(
+                        stringResource(
+                            R.string.feature_editor_speed_item,
+                            speedRange.speed,
+                            formatTime(speedRange.range.startUs / US_PER_MS),
+                            formatTime(speedRange.range.endUs / US_PER_MS),
+                        ),
+                        color = contentColor,
+                    )
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    SPEED_STEPS.forEach { step ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.feature_editor_speed_step, step)) },
+                            onClick = {
+                                onSpeedChange(step)
+                                expanded = false
+                            },
+                        )
+                    }
+                }
+            }
+            TextButton(onClick = onRemove) { Text(stringResource(R.string.feature_editor_remove)) }
+        }
+        EditorRangeSlider(range = speedRange.range, durationUs = durationUs, enabled = true, onRangeChange = onRangeChange)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FlipSection(
+    viewModel: EditorViewModel,
+    contentColor: androidx.compose.ui.graphics.Color,
+    padding: androidx.compose.ui.unit.Dp,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(padding)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.feature_editor_flip_section),
+                color = contentColor,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f),
+            )
+            AssistChip(
+                onClick = { viewModel.addFlip(horizontal = true, vertical = false) },
+                label = { Text(stringResource(R.string.feature_editor_flip_add)) },
+            )
+        }
+        viewModel.flips.forEachIndexed { index, flipRange ->
+            FlipRow(
+                flipRange = flipRange,
+                durationUs = viewModel.durationUs,
+                contentColor = contentColor,
+                onRangeChange = { start, end -> viewModel.updateFlip(index, flipRange.copy(range = TimeRange(start, end))) },
+                onHorizontalChange = { value -> viewModel.updateFlip(index, flipRange.copy(horizontal = value)) },
+                onVerticalChange = { value -> viewModel.updateFlip(index, flipRange.copy(vertical = value)) },
+                onRemove = { viewModel.removeFlip(index) },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FlipRow(
+    flipRange: FlipRange,
+    durationUs: Long,
+    contentColor: androidx.compose.ui.graphics.Color,
+    onRangeChange: (startUs: Long, endUs: Long) -> Unit,
+    onHorizontalChange: (Boolean) -> Unit,
+    onVerticalChange: (Boolean) -> Unit,
+    onRemove: () -> Unit,
+) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(
+                    R.string.feature_editor_flip_item,
+                    formatTime(flipRange.range.startUs / US_PER_MS),
+                    formatTime(flipRange.range.endUs / US_PER_MS),
+                ),
+                color = contentColor,
+                modifier = Modifier.weight(1f),
+            )
+            FilterChip(
+                selected = flipRange.horizontal,
+                onClick = { onHorizontalChange(!flipRange.horizontal) },
+                label = { Text(stringResource(R.string.feature_editor_flip_horizontal)) },
+            )
+            FilterChip(
+                selected = flipRange.vertical,
+                onClick = { onVerticalChange(!flipRange.vertical) },
+                label = { Text(stringResource(R.string.feature_editor_flip_vertical)) },
+            )
+            TextButton(onClick = onRemove) { Text(stringResource(R.string.feature_editor_remove)) }
+        }
+        EditorRangeSlider(range = flipRange.range, durationUs = durationUs, enabled = true, onRangeChange = onRangeChange)
+    }
 }
 
 private const val MIN_FONT_SIZE_PT = 8f
