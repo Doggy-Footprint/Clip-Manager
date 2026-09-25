@@ -204,6 +204,82 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 
 `keystore.properties`가 없으면 서명되지 않은 `app-release-unsigned.apk`가 만들어집니다. 이 파일은 기기에 설치할 수 없습니다.
 
+## 확장 모듈 (커스터마이징)
+
+앱 저장소를 수정하지 않고 탭 추가, 설정 섹션 추가, 내장 탭(파일/비디오/오디오/이미지) 화면 교체를 빌드에 포함할 수 있습니다. 배경은 ADR `agent-docs/adr/fd4b110cca047a16-compile-time-extension-modules.md`를 보세요.
+
+### 1. 연결
+
+`local.properties`에 확장 모듈들이 들어 있는 디렉터리를 지정합니다. 그 아래에서 `build.gradle.kts`가 있는 하위 디렉터리마다 `:ext:<디렉터리명>` 모듈로 include되고 `:app`에 포함됩니다. 속성을 지우면 확장 없이 빌드됩니다.
+
+```properties
+extensionModules.dir=/path/to/extensions
+```
+
+```
+/path/to/extensions/
+└── mytab/
+    ├── build.gradle.kts
+    └── src/main/java/...
+```
+
+### 2. 모듈 빌드 스크립트
+
+```kotlin
+plugins {
+    alias(libs.plugins.clip.android.feature)
+}
+
+android {
+    namespace = "com.example.mytab"
+}
+
+dependencies {
+    implementation(projects.core.extensionApi)
+}
+```
+
+### 3. 확장 지점 구현과 등록
+
+| 인터페이스 | 용도 |
+|---|---|
+| `TabExtension` | 탭 레일에 탭 추가. 선택하면 `Content`가 explorer 영역에 표시됨 |
+| `SettingsSection` | 설정 화면에 섹션 추가 |
+| `BuiltInTabOverride` | 내장 탭 하나의 explorer 화면 교체. `default(Modifier)`로 원래 화면을 함께 배치할 수 있음 |
+| `LocalExtensionNavigator` | 확장 Composable 안에서 `openSettings(sectionId)`로 설정 화면으로 이동 |
+
+```kotlin
+class MyTab @Inject constructor() : TabExtension {
+    override val id = "mytab"
+    override val icon = Icons.Default.Star
+    override val order = 0
+
+    @Composable override fun label() = stringResource(R.string.mytab_label)
+
+    @Composable override fun Content(modifier: Modifier) {
+        val navigator = LocalExtensionNavigator.current
+        Button(onClick = { navigator.openSettings("mytab-settings") }, modifier = modifier) {
+            Text(stringResource(R.string.mytab_open_settings))
+        }
+    }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class MyTabModule {
+    @Binds @IntoSet abstract fun tab(impl: MyTab): TabExtension
+}
+```
+
+`SettingsSection`, `BuiltInTabOverride`도 같은 방식으로 `@Binds @IntoSet` 등록합니다.
+
+### 4. 규칙
+
+- 탭과 설정 섹션은 `order`가 작은 순, 같으면 `id` 순으로 표시됩니다.
+- 같은 내장 탭에 `BuiltInTabOverride`가 둘 이상 등록되면 앱 실행 시 오류가 납니다.
+- `openSettings(sectionId)`의 `sectionId`는 `SettingsSection.id`이며, 해당 섹션까지 스크롤합니다. 없는 id면 설정 화면만 엽니다.
+- 확장을 추가하거나 제거하면 앱을 다시 빌드해야 합니다.
+
 ## 테스트
 
 ### 자동 테스트

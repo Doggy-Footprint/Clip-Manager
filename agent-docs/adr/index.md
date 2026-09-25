@@ -37,3 +37,8 @@ File: 9d4b2e71a0c83f56-three-layer-single-screen.md
 Summary: NavHost를 제거하고 tab/explorer/viewer 3-layer를 한 화면에 적응형으로 배치
 Related Files: app/src/main/java/com/doggy/clip_manager/ui/ClipApp.kt, app/src/main/java/com/doggy/clip_manager/ui/TabLayer.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/PlayerViewModel.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/PlayerScreen.kt, feature/browser/src/main/java/com/doggy/clip_manager/feature/browser/BrowserScreen.kt
 Related Symbols: ClipApp, TabLayer, PlayerPane, PlayerViewModel.open, BrowserScreenRoute
+---
+File: fd4b110cca047a16-compile-time-extension-modules.md
+Summary: 커스터마이징은 local.properties로 include하는 컴파일 타임 :ext 모듈과 Hilt multibinding으로 제공, 런타임 플러그인 기각
+Related Files: core/extension-api, settings.gradle.kts, app/build.gradle.kts, app/src/main/java/com/doggy/clip_manager/ui/ClipApp.kt, app/src/main/java/com/doggy/clip_manager/ui/TabKey.kt, app/src/main/java/com/doggy/clip_manager/ui/SettingsScreen.kt
+Related Symbols: TabExtension, SettingsSection, BuiltInTabOverride, ExtensionNavigator, LocalExtensionNavigator, ExtensionBindingsModule, ExtensionsViewModel, overridesByTarget
