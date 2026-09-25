@@ -2,7 +2,7 @@
 
 All-in-one file exploring and managing app for android. Target files are videos, images, sounds, and with plugins. An user can assign tag-system for each files for convinient management. This app supports viewers for each type of files and editing features.
 
-<!-- harness:begin 0.9.0 -->
+<!-- harness:begin 0.10.0 -->
 # Documentation Guide
 
 "Documentation" refers to standalone docs, inline comments, and docstrings.
