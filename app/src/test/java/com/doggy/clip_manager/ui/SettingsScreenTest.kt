@@ -1,11 +1,16 @@
 package com.doggy.clip_manager.ui
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.doggy.clip_manager.ui.fakes.FakeSettingsSection
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -102,5 +107,39 @@ class SettingsScreenTest {
 
         assertTrue("clicker ($clickerTop) should be above S1 ($s1Top)", clickerTop < s1Top)
         assertTrue("S1 ($s1Top) should be above S2 ($s2Top)", s1Top < s2Top)
+    }
+
+    @Test
+    fun scrollToSectionId_bringsSectionIntoView_andReportsDone() {
+        val sections = (1..30).map { FakeSettingsSection(id = "s$it", order = it, titleText = "S$it") }
+        var done = 0
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                sections = sections,
+                modifier = Modifier.height(200.dp),
+                scrollToSectionId = "s30",
+                onScrolledToSection = { done++ },
+            )
+        }
+
+        composeTestRule.onNodeWithText("S30", useUnmergedTree = true).assertIsDisplayed()
+        assertEquals(1, done)
+    }
+
+    @Test
+    fun scrollToUnknownSectionId_stillReportsDone() {
+        var done = 0
+
+        composeTestRule.setContent {
+            SettingsScreen(
+                sections = listOf(FakeSettingsSection(id = "s1", order = 1)),
+                scrollToSectionId = "missing",
+                onScrolledToSection = { done++ },
+            )
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(1, done)
     }
 }

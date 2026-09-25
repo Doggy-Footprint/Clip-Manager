@@ -1,6 +1,7 @@
 package com.doggy.clip_manager.core.extension
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -34,4 +35,12 @@ interface BuiltInTabOverride {
 
     @Composable
     fun Content(modifier: Modifier, default: @Composable (Modifier) -> Unit)
+}
+
+interface ExtensionNavigator {
+    fun openSettings(sectionId: String? = null)
+}
+
+val LocalExtensionNavigator = staticCompositionLocalOf<ExtensionNavigator> {
+    error("LocalExtensionNavigator is provided only inside ClipApp")
 }

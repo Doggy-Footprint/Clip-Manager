@@ -17,3 +17,4 @@ bin/
 agent-docs/specs/.active
 agent-docs/specs/.running/
 agent-docs/specs/.seed/
+/local.properties
