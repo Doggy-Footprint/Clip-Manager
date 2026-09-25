@@ -55,26 +55,7 @@ Failed to transform core-for-system-modules.jar ...
 - 훅이 동작하려면 `git config core.hooksPath .harness/git`이 설정되어 있어야 합니다(harness 설치 시 설정됨).
 - 수동으로 복사하려면 새 worktree 안에서 `scripts/sync-worktree-files.sh`를 실행하세요.
 
-## 디버그 빌드 및 설치
-
-```bash
-./gradlew :app:assembleDebug      # → app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:installDebug       # 연결된 기기/에뮬레이터에 설치
-```
-
-- 첫 실행 시 "모든 파일 접근"(API 30+) 또는 저장소 읽기(API 29 이하) 권한을 허용해야 합니다.
-- 플레이어 로그 확인:
-
-  ```bash
-  adb logcat -v time -s ClipPlayer
-  ```
-
-  주요 로그 줄:
-  - `seek request`: seek 요청이 들어옴
-  - `seek executed ... prepare_ms`: seek 실행, keyframe 탐색에 걸린 시간
-  - `first frame after seek latency_ms`: 요청부터 첫 디코딩 프레임까지 걸린 시간
-
-## 기기 테스트용 에뮬레이터
+## 기기 테스트용 에뮬레이터 (AVD)
 
 앱을 설치해서 확인할 때는 1280x800 태블릿 AVD를 씁니다(`agent-docs/adr/c3ff15cc5c14f11f-emulator-device-testing.md`).
 
@@ -100,18 +81,102 @@ Failed to transform core-for-system-modules.jar ...
    sed -i '' -E 's/^hw.lcd.width=.*/hw.lcd.width=1280/; s/^hw.lcd.height=.*/hw.lcd.height=800/; s/^hw.lcd.density=.*/hw.lcd.density=160/; s/^hw.initialOrientation=.*/hw.initialOrientation=landscape/' $C
    ```
 
-4. **실행과 준비**
+4. **AVD 실행**
+
+   등록된 AVD 목록을 확인하고 에뮬레이터를 백그라운드로 실행합니다.
 
    ```bash
+   SDK=~/Library/Android/sdk
+
+   # 등록된 AVD 목록 확인
+   $SDK/emulator/emulator -list-avds
+
+   # 에뮬레이터 백그라운드 실행 및 부팅 대기
    $SDK/emulator/emulator -avd clip_tablet_1280x800 &
-   adb -s emulator-5554 wait-for-device
-   ./gradlew :app:installDebug
-   adb -s emulator-5554 shell appops set com.doggy.clip_manager MANAGE_EXTERNAL_STORAGE allow   # 설정 화면 대신 권한 부여
+   adb wait-for-device
    ```
 
-   테스트 영상은 [실기기 seek 측정](#실기기-seek-측정)의 방법으로 만들어 `adb push`로 넣습니다.
+   > [!NOTE]
+   > 에뮬레이터의 MediaCodec 디코더(`c2.goldfish.*`)는 물리 기기와 동작이 다릅니다.
 
-에뮬레이터의 MediaCodec 디코더(`c2.goldfish.*`)는 물리 기기와 동작이 다릅니다.
+## 디버그 빌드 및 설치
+
+### 1. 빌드 및 기기 설치
+
+```bash
+# 디버그 APK 빌드 (app/build/outputs/apk/debug/app-debug.apk)
+./gradlew :app:assembleDebug
+
+# 연결된 기기/에뮬레이터에 설치
+./gradlew :app:installDebug
+```
+
+또는 빌드된 APK를 `adb`로 직접 설치할 수 있습니다.
+
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 2. 권한 설정 및 테스트 파일 복사
+
+첫 실행 시 "모든 파일 접근"(API 30+) 또는 저장소 읽기(API 29 이하) 권한을 허용해야 합니다. 설정 화면 대신 `adb`로 즉시 허용할 수 있습니다.
+
+```bash
+adb shell appops set com.doggy.clip_manager MANAGE_EXTERNAL_STORAGE allow
+```
+
+테스트 영상은 [실기기 seek 측정](#실기기-seek-측정)의 방법으로 만들어 `adb push`로 기기에 넣습니다.
+
+```bash
+adb shell mkdir -p /sdcard/test && adb push seek_gop2s.ts seek_gop10s.ts /sdcard/test/
+```
+
+## 앱 실행 및 디버깅
+
+### 1. 일반 실행 및 종료
+
+```bash
+# 앱 실행 (MainActivity)
+adb shell am start -n com.doggy.clip_manager/.MainActivity
+
+# 앱 종료 (강제 종료)
+adb shell am force-stop com.doggy.clip_manager
+```
+
+### 2. 디버깅 실행 방법
+
+#### Android Studio GUI 디버깅
+- **디버그 실행**: 대상 기기(AVD)를 선택한 후 **Debug 'app'** (`Shift + F9` 또는 상단 벌레 아이콘)을 실행합니다.
+- **C/C++ 네이티브(NDK) 디버깅**: FFmpeg 플레이어 네이티브 C++ 코드(`core:player`) 디버깅이 필요하면 **Run > Edit Configurations... > app > Debugger** 탭에서 **Debug type**을 `Dual (Java + Native)`로 설정합니다. 이렇게 하면 Kotlin UI 코드와 C++ 플레이어 코드 양쪽에 브레이크포인트를 걸 수 있습니다.
+
+#### CLI에서 디버그 모드로 실행 후 디버거 연결 (Attach Debugger)
+앱을 시작할 때 디버거 연결 대기 상태로 진입하도록 실행할 수 있습니다.
+
+```bash
+# 디버거 대기 모드로 앱 실행 (화면에 'Waiting For Debugger' 대화상자 표시)
+adb shell am start -D -n com.doggy.clip_manager/.MainActivity
+```
+
+앱이 대기 상태가 되면 Android Studio 상단 메뉴의 **Run > Attach Debugger to Android Process**를 클릭하고 `com.doggy.clip_manager` 프로세스를 선택하여 디버거를 연결합니다.
+
+### 3. 로그 확인 (Logcat)
+
+플레이어 주요 동작 로그를 필터링하여 확인합니다.
+
+```bash
+adb logcat -v time -s ClipPlayer
+```
+
+주요 로그 줄:
+- `seek request`: seek 요청이 들어옴
+- `seek executed ... prepare_ms`: seek 실행, keyframe 탐색에 걸린 시간
+- `first frame after seek latency_ms`: 요청부터 첫 디코딩 프레임까지 걸린 시간
+
+앱 프로세스 전체 로그를 확인하려면 프로세스 ID(pid)로 필터링합니다.
+
+```bash
+adb logcat --pid=$(adb shell pidof -s com.doggy.clip_manager)
+```
 
 ## 릴리스 빌드
 
