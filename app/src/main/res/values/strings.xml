@@ -6,4 +6,7 @@
     <string name="tab_images">이미지</string>
     <string name="tab_dummy_tag">여행</string>
     <string name="tab_settings">설정</string>
+    <string name="settings_public_section_title">일반</string>
+    <string name="settings_clicker_hi">hi</string>
+    <string name="settings_clicker_bye">bye</string>
 </resources>

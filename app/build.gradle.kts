@@ -47,12 +47,17 @@ android {
             }
         }
     }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(projects.core.designsystem)
     implementation(projects.core.editor)
+    implementation(projects.core.extensionApi)
     implementation(projects.core.model)
     implementation(projects.core.ui)
     implementation(projects.feature.browser)
@@ -66,4 +71,14 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.serialization.json)
+
+    // Optional extension modules discovered from `extensionModules.dir` in local.properties (see settings.gradle.kts).
+    rootProject.subprojects
+        .filter { it.path.startsWith(":ext:") }
+        .forEach { extModule -> implementation(project(extModule.path)) }
+
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

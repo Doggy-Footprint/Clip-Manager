@@ -21,6 +21,7 @@ import com.doggy.clip_manager.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.util.UnstableApi
 import com.doggy.clip_manager.feature.browser.BrowserScreenRoute
+import com.doggy.clip_manager.core.model.MediaEntry
 import com.doggy.clip_manager.core.model.MediaKind
 import com.doggy.clip_manager.feature.browser.ImageGridRoute
 import com.doggy.clip_manager.feature.browser.MediaGridRoute
@@ -34,12 +35,17 @@ private enum class LayerLayout { WIDE, THIN, PORTRAIT }
 @UnstableApi
 @Composable
 fun ClipApp() {
-    var selectedTab by rememberSaveable { mutableStateOf(MediaTab.FILES) }
+    var selectedTab: TabKey by rememberSaveable(stateSaver = TabKeySaver) { mutableStateOf(TabKey.BuiltIn(MediaTab.FILES)) }
     var selectedPath by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedMediaUri by rememberSaveable { mutableStateOf<String?>(null) }
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     val editor: EditorViewModel = hiltViewModel()
+    val extensionsViewModel: ExtensionsViewModel = hiltViewModel()
+    val effectiveTab = resolveTabKey(
+        selectedTab,
+        extensionsViewModel.tabs.map { it.id }.toSet(),
+    )
 
     BackHandler(enabled = isFullscreen) { isFullscreen = false }
 
@@ -73,54 +79,84 @@ fun ClipApp() {
             }
             Row(Modifier.fillMaxSize()) {
                 TabLayer(
-                    selected = selectedTab,
+                    selected = effectiveTab,
                     onSelect = { selectedTab = it },
+                    extensions = extensionsViewModel.tabs,
                     compact = layout != LayerLayout.WIDE,
                 )
                 VerticalDivider()
-                val explorer = @Composable { modifier: Modifier ->
-                    when {
-                        editor.editing ->
-                            ImageGridRoute(onImageSelected = { editor.addImageOverlay(it) }, modifier = modifier)
-                        selectedTab == MediaTab.FILES -> BrowserScreenRoute(
-                            onOpenVideo = {
-                                selectedImageUri = null
-                                selectedPath = it
-                            },
-                            selectedPath = selectedPath,
-                            compact = layout == LayerLayout.THIN,
-                            modifier = modifier,
-                        )
-                        else -> MediaGridRoute(
-                            kind = when (selectedTab) {
-                                MediaTab.VIDEOS -> MediaKind.VIDEO
-                                MediaTab.AUDIO -> MediaKind.AUDIO
-                                else -> MediaKind.IMAGE
-                            },
-                            onEntrySelected = { entry ->
-                                if (entry.kind == MediaKind.IMAGE) {
-                                    selectedImageUri = entry.uri
-                                } else {
+                if (effectiveTab == TabKey.Settings) {
+                    SettingsScreen(sections = extensionsViewModel.sections, modifier = Modifier.weight(1f))
+                } else {
+                    val onMediaEntrySelected: (MediaEntry) -> Unit = { entry ->
+                        if (entry.kind == MediaKind.IMAGE) {
+                            selectedImageUri = entry.uri
+                        } else {
+                            selectedImageUri = null
+                            entry.filePath?.let { selectedPath = it }
+                        }
+                        selectedMediaUri = entry.uri
+                    }
+                    fun defaultBuiltInContent(tab: MediaTab): @Composable (Modifier) -> Unit = { modifier ->
+                        when (tab) {
+                            MediaTab.FILES -> BrowserScreenRoute(
+                                onOpenVideo = {
                                     selectedImageUri = null
-                                    entry.filePath?.let { selectedPath = it }
+                                    selectedPath = it
+                                },
+                                selectedPath = selectedPath,
+                                compact = layout == LayerLayout.THIN,
+                                modifier = modifier,
+                            )
+                            MediaTab.VIDEOS -> MediaGridRoute(
+                                kind = MediaKind.VIDEO,
+                                onEntrySelected = onMediaEntrySelected,
+                                selectedUri = selectedMediaUri,
+                                modifier = modifier,
+                            )
+                            MediaTab.AUDIO -> MediaGridRoute(
+                                kind = MediaKind.AUDIO,
+                                onEntrySelected = onMediaEntrySelected,
+                                selectedUri = selectedMediaUri,
+                                modifier = modifier,
+                            )
+                            MediaTab.IMAGES -> MediaGridRoute(
+                                kind = MediaKind.IMAGE,
+                                onEntrySelected = onMediaEntrySelected,
+                                selectedUri = selectedMediaUri,
+                                modifier = modifier,
+                            )
+                        }
+                    }
+                    val explorer = @Composable { modifier: Modifier ->
+                        val key = effectiveTab
+                        when {
+                            editor.editing ->
+                                ImageGridRoute(onImageSelected = { editor.addImageOverlay(it) }, modifier = modifier)
+                            key is TabKey.BuiltIn -> {
+                                val default = defaultBuiltInContent(key.tab)
+                                val override = extensionsViewModel.overrides[key.tab.builtIn]
+                                if (override != null) {
+                                    override.Content(modifier, default)
+                                } else {
+                                    default(modifier)
                                 }
-                                selectedMediaUri = entry.uri
-                            },
-                            selectedUri = selectedMediaUri,
-                            modifier = modifier,
-                        )
+                            }
+                            key is TabKey.Extension ->
+                                extensionsViewModel.tabs.firstOrNull { it.id == key.id }?.Content(modifier)
+                        }
                     }
-                }
-                when (layout) {
-                    LayerLayout.PORTRAIT -> Column(Modifier.weight(1f)) {
-                        explorer(Modifier.weight(1f))
-                        viewer(Modifier.weight(1f))
-                    }
-                    else -> {
-                        val explorerWidth = if (layout == LayerLayout.THIN) R.dimen.explorer_thin_width else R.dimen.explorer_width
-                        explorer(Modifier.width(dimensionResource(explorerWidth)).fillMaxHeight())
-                        VerticalDivider()
-                        viewer(Modifier.weight(1f))
+                    when (layout) {
+                        LayerLayout.PORTRAIT -> Column(Modifier.weight(1f)) {
+                            explorer(Modifier.weight(1f))
+                            viewer(Modifier.weight(1f))
+                        }
+                        else -> {
+                            val explorerWidth = if (layout == LayerLayout.THIN) R.dimen.explorer_thin_width else R.dimen.explorer_width
+                            explorer(Modifier.width(dimensionResource(explorerWidth)).fillMaxHeight())
+                            VerticalDivider()
+                            viewer(Modifier.weight(1f))
+                        }
                     }
                 }
             }

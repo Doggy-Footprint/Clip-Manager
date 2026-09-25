@@ -23,18 +23,21 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import com.doggy.clip_manager.R
 import com.doggy.clip_manager.core.designsystem.icon.ClipIcons
+import com.doggy.clip_manager.core.extension.BuiltInTab
+import com.doggy.clip_manager.core.extension.TabExtension
 
-enum class MediaTab(internal val icon: ImageVector, @StringRes internal val label: Int) {
-    FILES(ClipIcons.Folder, R.string.tab_files),
-    VIDEOS(ClipIcons.Video, R.string.tab_videos),
-    AUDIO(ClipIcons.Audio, R.string.tab_audio),
-    IMAGES(ClipIcons.Image, R.string.tab_images),
+enum class MediaTab(internal val icon: ImageVector, @StringRes internal val label: Int, val builtIn: BuiltInTab) {
+    FILES(ClipIcons.Folder, R.string.tab_files, BuiltInTab.FILES),
+    VIDEOS(ClipIcons.Video, R.string.tab_videos, BuiltInTab.VIDEOS),
+    AUDIO(ClipIcons.Audio, R.string.tab_audio, BuiltInTab.AUDIO),
+    IMAGES(ClipIcons.Image, R.string.tab_images, BuiltInTab.IMAGES),
 }
 
 @Composable
 fun TabLayer(
-    selected: MediaTab,
-    onSelect: (MediaTab) -> Unit,
+    selected: TabKey,
+    onSelect: (TabKey) -> Unit,
+    extensions: List<TabExtension>,
     compact: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -46,10 +49,22 @@ fun TabLayer(
                 icon = tab.icon,
                 label = stringResource(tab.label),
                 compact = compact,
-                selected = dummySelection == null && selected == tab,
+                selected = dummySelection == null && selected == TabKey.BuiltIn(tab),
                 onClick = {
                     dummySelection = null
-                    onSelect(tab)
+                    onSelect(TabKey.BuiltIn(tab))
+                },
+            )
+        }
+        extensions.forEach { ext ->
+            RailItem(
+                icon = ext.icon,
+                label = ext.label(),
+                compact = compact,
+                selected = dummySelection == null && selected == TabKey.Extension(ext.id),
+                onClick = {
+                    dummySelection = null
+                    onSelect(TabKey.Extension(ext.id))
                 },
             )
         }
@@ -73,8 +88,11 @@ fun TabLayer(
             icon = ClipIcons.Settings,
             label = stringResource(R.string.tab_settings),
             compact = compact,
-            selected = false,
-            onClick = {},
+            selected = selected == TabKey.Settings,
+            onClick = {
+                dummySelection = null
+                onSelect(TabKey.Settings)
+            },
         )
     }
 }
