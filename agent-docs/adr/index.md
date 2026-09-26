@@ -34,7 +34,7 @@ Related Files: README.md
 Related Symbols: none
 ---
 File: 9d4b2e71a0c83f56-three-layer-single-screen.md
-Summary: NavHost를 제거하고 tab/explorer/viewer 3-layer를 한 화면에 적응형으로 배치
+Summary: NavHost를 제거하고 tab/side/main 3-layer를 한 화면에 적응형으로 배치
 Related Files: app/src/main/java/com/doggy/clip_manager/ui/ClipApp.kt, app/src/main/java/com/doggy/clip_manager/ui/TabLayer.kt, feature/mainlayer/src/main/java/com/doggy/clip_manager/feature/mainlayer/PlayerViewModel.kt, feature/mainlayer/src/main/java/com/doggy/clip_manager/feature/mainlayer/PlayerPane.kt, feature/sidelayer/src/main/java/com/doggy/clip_manager/feature/sidelayer/BrowserScreen.kt
 Related Symbols: ClipApp, TabLayer, PlayerPane, PlayerViewModel.open, BrowserScreenRoute
 ---

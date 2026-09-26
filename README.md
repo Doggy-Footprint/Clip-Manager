@@ -243,9 +243,9 @@ dependencies {
 
 | 인터페이스 | 용도 |
 |---|---|
-| `TabExtension` | 탭 레일에 탭 추가. 선택하면 `Content`가 explorer 영역에 표시됨 |
+| `TabExtension` | 탭 레일에 탭 추가. 선택하면 `Content`가 side layer 영역에 표시됨 |
 | `SettingsSection` | 설정 화면에 섹션 추가 |
-| `BuiltInTabOverride` | 내장 탭 하나의 explorer 화면 교체. `default(Modifier)`로 원래 화면을 함께 배치할 수 있음 |
+| `BuiltInTabOverride` | 내장 탭 하나의 side layer 화면 교체. `default(Modifier)`로 원래 화면을 함께 배치할 수 있음 |
 | `LocalExtensionNavigator` | 확장 Composable 안에서 `openSettings(sectionId)`로 설정 화면으로 이동 |
 
 ```kotlin
