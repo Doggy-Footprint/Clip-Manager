@@ -11,4 +11,4 @@ Status: Accepted
 
 ## Consequences
 - Positive: 기기나 에뮬레이터 없이 Gradle 태스크로 UI 회귀를 검사한다.
-- Negative: Robolectric 렌더링이라 SurfaceView와 네이티브 코드를 쓰는 화면(PlayerScreen)은 검사할 수 없다.
+- Negative: Robolectric 렌더링이라 SurfaceView와 네이티브 코드를 쓰는 화면(PlayerPaneLayout)은 검사할 수 없다.

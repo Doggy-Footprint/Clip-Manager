@@ -34,9 +34,9 @@ include(":core:model")
 include(":core:player")
 include(":core:testing")
 include(":core:ui")
-include(":feature:browser")
+include(":feature:sidelayer")
 include(":feature:editor")
-include(":feature:player")
+include(":feature:mainlayer")
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 run {

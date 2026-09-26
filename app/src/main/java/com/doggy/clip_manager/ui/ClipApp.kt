@@ -24,15 +24,15 @@ import com.doggy.clip_manager.core.extension.ExtensionNavigator
 import com.doggy.clip_manager.core.extension.LocalExtensionNavigator
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.media3.common.util.UnstableApi
-import com.doggy.clip_manager.feature.browser.BrowserScreenRoute
+import com.doggy.clip_manager.feature.sidelayer.BrowserScreenRoute
 import com.doggy.clip_manager.core.model.MediaEntry
 import com.doggy.clip_manager.core.model.MediaKind
-import com.doggy.clip_manager.feature.browser.ImageGridRoute
-import com.doggy.clip_manager.feature.browser.MediaGridRoute
+import com.doggy.clip_manager.feature.sidelayer.ImageGridRoute
+import com.doggy.clip_manager.feature.sidelayer.MediaGridRoute
 import com.doggy.clip_manager.feature.editor.EditorPane
 import com.doggy.clip_manager.feature.editor.EditorViewModel
-import com.doggy.clip_manager.feature.player.ImageViewerPane
-import com.doggy.clip_manager.feature.player.PlayerPane
+import com.doggy.clip_manager.feature.mainlayer.ImageViewerPane
+import com.doggy.clip_manager.feature.mainlayer.PlayerPane
 
 private enum class LayerLayout { WIDE, THIN, PORTRAIT }
 
@@ -65,7 +65,7 @@ fun ClipApp() {
     Surface(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalExtensionNavigator provides navigator) {
             BoxWithConstraints(Modifier.safeDrawingPadding()) {
-                val viewer = @Composable { modifier: Modifier ->
+                val mainLayer = @Composable { modifier: Modifier ->
                     if (editor.editing) {
                         EditorPane(viewModel = editor, modifier = modifier)
                     } else if (selectedImageUri != null) {
@@ -83,7 +83,7 @@ fun ClipApp() {
                     }
                 }
                 if (isFullscreen) {
-                    viewer(Modifier.fillMaxSize())
+                    mainLayer(Modifier.fillMaxSize())
                     return@BoxWithConstraints
                 }
                 val layout = when {
@@ -147,7 +147,7 @@ fun ClipApp() {
                                 )
                             }
                         }
-                        val explorer = @Composable { modifier: Modifier ->
+                        val sideLayer = @Composable { modifier: Modifier ->
                             val key = effectiveTab
                             when {
                                 editor.editing ->
@@ -167,14 +167,14 @@ fun ClipApp() {
                         }
                         when (layout) {
                             LayerLayout.PORTRAIT -> Column(Modifier.weight(1f)) {
-                                explorer(Modifier.weight(1f))
-                                viewer(Modifier.weight(1f))
+                                sideLayer(Modifier.weight(1f))
+                                mainLayer(Modifier.weight(1f))
                             }
                             else -> {
-                                val explorerWidth = if (layout == LayerLayout.THIN) R.dimen.explorer_thin_width else R.dimen.explorer_width
-                                explorer(Modifier.width(dimensionResource(explorerWidth)).fillMaxHeight())
+                                val sideLayerWidth = if (layout == LayerLayout.THIN) R.dimen.side_layer_thin_width else R.dimen.side_layer_width
+                                sideLayer(Modifier.width(dimensionResource(sideLayerWidth)).fillMaxHeight())
                                 VerticalDivider()
-                                viewer(Modifier.weight(1f))
+                                mainLayer(Modifier.weight(1f))
                             }
                         }
                     }

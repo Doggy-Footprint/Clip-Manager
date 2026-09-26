@@ -7,7 +7,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 if [ $# -eq 0 ]; then
   echo "usage: $0 <gradle test task> [more tasks or gradle args]" >&2
-  echo "example: $0 :feature:browser:testDebugUnitTest --tests '*MediaGridScreenScreenshotTest*'" >&2
+  echo "example: $0 :feature:sidelayer:testDebugUnitTest --tests '*MediaGridScreenScreenshotTest*'" >&2
   exit 2
 fi
 

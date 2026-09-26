@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="feature_sidelayer_divider_inset">72dp</dimen>
+    <dimen name="feature_sidelayer_compact_cell_padding">8dp</dimen>
+    <dimen name="feature_sidelayer_compact_icon_size">40dp</dimen>
+    <dimen name="feature_sidelayer_image_cell_size">96dp</dimen>
+    <dimen name="feature_sidelayer_image_cell_spacing">4dp</dimen>
+</resources>

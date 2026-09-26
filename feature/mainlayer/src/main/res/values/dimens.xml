@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="feature_mainlayer_overlay_padding_horizontal">8dp</dimen>
+    <dimen name="feature_mainlayer_overlay_padding_vertical">8dp</dimen>
+    <dimen name="feature_mainlayer_title_padding_horizontal">8dp</dimen>
+    <dimen name="feature_mainlayer_seek_track_height">2dp</dimen>
+    <dimen name="feature_mainlayer_seek_thumb_size">12dp</dimen>
+    <dimen name="feature_mainlayer_seek_time_spacing">8dp</dimen>
+    <item name="feature_mainlayer_control_spacing_ratio" format="float" type="dimen">0.044</item>
+    <dimen name="feature_mainlayer_control_button_size">56dp</dimen>
+    <dimen name="feature_mainlayer_control_icon_size">36dp</dimen>
+</resources>

@@ -60,9 +60,9 @@ dependencies {
     implementation(projects.core.extensionApi)
     implementation(projects.core.model)
     implementation(projects.core.ui)
-    implementation(projects.feature.browser)
+    implementation(projects.feature.sidelayer)
     implementation(projects.feature.editor)
-    implementation(projects.feature.player)
+    implementation(projects.feature.mainlayer)
     implementation(libs.media3.common)
 
     implementation(libs.androidx.core.ktx)

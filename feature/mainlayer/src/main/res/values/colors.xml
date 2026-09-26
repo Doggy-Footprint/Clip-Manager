@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="feature_mainlayer_background">#FF000000</color>
+    <color name="feature_mainlayer_content">#FFFFFFFF</color>
+    <color name="feature_mainlayer_scrim">#8C000000</color>
+    <color name="feature_mainlayer_seek_inactive">#66FFFFFF</color>
+</resources>

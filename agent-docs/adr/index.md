@@ -20,13 +20,13 @@ Related Symbols: AndroidApplicationConventionPlugin, AndroidLibraryConventionPlu
 ---
 File: 87ecd598db2d116a-roborazzi-screenshot-test.md
 Summary: Roborazzi 스크린샷 테스트 채택
-Related Files: build-logic/convention, core/designsystem/src/test, feature/browser/src/test
+Related Files: build-logic/convention, core/designsystem/src/test, feature/sidelayer/src/test
 Related Symbols: RoborazziConventionPlugin
 ---
 File: 41ebb0749f7b1300-ui-values-in-resources.md
 Summary: UI 색상·문자열·치수 하드코딩 금지, 모듈별 리소스 파일로 정의
-Related Files: core/designsystem/src/main/res/values/colors.xml, core/designsystem/src/main/java/com/doggy/clip_manager/core/designsystem/theme/Theme.kt, feature/player/src/main/res/values, feature/browser/src/main/res/values
-Related Symbols: ClipTheme, EmptyState, PlayerScreenRoute, BrowserScreen
+Related Files: core/designsystem/src/main/res/values/colors.xml, core/designsystem/src/main/java/com/doggy/clip_manager/core/designsystem/theme/Theme.kt, feature/mainlayer/src/main/res/values, feature/sidelayer/src/main/res/values
+Related Symbols: ClipTheme, EmptyState, PlayerPaneLayoutRoute, BrowserScreen
 ---
 File: c3ff15cc5c14f11f-emulator-device-testing.md
 Summary: 기기 테스트는 1280x800 태블릿 AVD에서 수행
@@ -35,7 +35,7 @@ Related Symbols: none
 ---
 File: 9d4b2e71a0c83f56-three-layer-single-screen.md
 Summary: NavHost를 제거하고 tab/explorer/viewer 3-layer를 한 화면에 적응형으로 배치
-Related Files: app/src/main/java/com/doggy/clip_manager/ui/ClipApp.kt, app/src/main/java/com/doggy/clip_manager/ui/TabLayer.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/PlayerViewModel.kt, feature/player/src/main/java/com/doggy/clip_manager/feature/player/PlayerScreen.kt, feature/browser/src/main/java/com/doggy/clip_manager/feature/browser/BrowserScreen.kt
+Related Files: app/src/main/java/com/doggy/clip_manager/ui/ClipApp.kt, app/src/main/java/com/doggy/clip_manager/ui/TabLayer.kt, feature/mainlayer/src/main/java/com/doggy/clip_manager/feature/mainlayer/PlayerViewModel.kt, feature/mainlayer/src/main/java/com/doggy/clip_manager/feature/mainlayer/PlayerPane.kt, feature/sidelayer/src/main/java/com/doggy/clip_manager/feature/sidelayer/BrowserScreen.kt
 Related Symbols: ClipApp, TabLayer, PlayerPane, PlayerViewModel.open, BrowserScreenRoute
 ---
 File: fd4b110cca047a16-compile-time-extension-modules.md
