@@ -95,7 +95,7 @@ class TabLayerTest {
 
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val lastBuiltInLabel = context.getString(R.string.tab_images)
-        val afterDividerLabel = context.getString(R.string.tab_dummy_tag)
+        val afterDividerLabel = context.getString(R.string.tab_settings)
 
         // positionInRoot (unlike getBoundsInRoot) is not clamped to the visible
         // viewport, so it stays accurate even for content laid out just below the
