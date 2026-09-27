@@ -39,4 +39,16 @@
     <string name="feature_editor_flip_item">%1$s~%2$s</string>
     <string name="feature_editor_flip_horizontal">좌우</string>
     <string name="feature_editor_flip_vertical">상하</string>
+    <string name="feature_editor_fullscreen">전체화면</string>
+    <string name="feature_editor_exit_fullscreen">전체화면 종료</string>
+    <string name="feature_editor_toolbox_text">텍스트 오버레이</string>
+    <string name="feature_editor_toolbox_image">이미지 오버레이</string>
+    <string name="feature_editor_text_color">글자색</string>
+    <string name="feature_editor_text_background">배경</string>
+    <string name="feature_editor_text_align">정렬</string>
+    <string name="feature_editor_align_center">가운데</string>
+    <string name="feature_editor_align_left">왼쪽</string>
+    <string name="feature_editor_background_none">배경 없음</string>
+    <string name="feature_editor_swatch_color">%1$d번 글자색</string>
+    <string name="feature_editor_swatch_background">%1$d번 배경색</string>
 </resources>

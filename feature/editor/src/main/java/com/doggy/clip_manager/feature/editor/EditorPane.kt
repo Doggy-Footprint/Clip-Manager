@@ -71,7 +71,10 @@ fun EditorPane(
     var surfaceSize by remember { mutableStateOf(Size(0, 0)) }
     var previewError by remember { mutableStateOf(false) }
 
-    BackHandler { viewModel.end() }
+    // While fullscreen, back releases fullscreen instead of ending the edit (F5); disabling this
+    // handler rather than relying on registration order keeps the choice deterministic.
+    BackHandler(enabled = !viewModel.fullscreen) { viewModel.end() }
+    BackHandler(enabled = viewModel.fullscreen) { viewModel.toggleFullscreen() }
 
     DisposableEffect(preview) { onDispose { preview.release() } }
 
@@ -133,7 +136,10 @@ fun EditorPane(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-                val selected = overlays.firstOrNull { it.id == viewModel.selectedOverlayId } as? ImageOverlay
+                // Stowed overlays never show edit handles (F2), checked here directly rather than
+                // solely relying on select()/stow() keeping selectedOverlayId out of the toolbox.
+                val selected = overlays
+                    .firstOrNull { it.id == viewModel.selectedOverlayId && it.id !in viewModel.stowedOverlayIds } as? ImageOverlay
                 if (selected != null) {
                     ImageOverlayEditor(
                         overlay = selected,

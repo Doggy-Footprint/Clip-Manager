@@ -1,13 +1,23 @@
 package com.doggy.clip_manager.feature.editor
 
+import android.content.ClipData
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.draganddrop.DragAndDropSourceScope
+import androidx.compose.foundation.draganddrop.dragAndDropSource
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -15,6 +25,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -29,12 +41,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropTransferData
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.media3.common.util.UnstableApi
 import androidx.compose.ui.platform.LocalContext
+import com.doggy.clip_manager.core.designsystem.icon.ClipIcons
 import com.doggy.clip_manager.core.editor.CutMode
 import com.doggy.clip_manager.core.editor.EditService
 import com.doggy.clip_manager.core.editor.EditState
@@ -69,6 +87,17 @@ internal fun EditorToolPanel(
             .padding(padding),
         verticalArrangement = Arrangement.spacedBy(padding),
     ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            IconButton(onClick = { viewModel.toggleFullscreen() }) {
+                Icon(
+                    imageVector = if (viewModel.fullscreen) ClipIcons.FullscreenExit else ClipIcons.Fullscreen,
+                    contentDescription = stringResource(
+                        if (viewModel.fullscreen) R.string.feature_editor_exit_fullscreen else R.string.feature_editor_fullscreen,
+                    ),
+                    tint = contentColor,
+                )
+            }
+        }
         val durationMs = (viewModel.durationUs / US_PER_MS).toFloat()
         val selection = viewModel.selection
         Text(
@@ -173,6 +202,7 @@ internal fun EditorToolPanel(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun OverlayRow(
     overlay: OverlaySpec,
@@ -181,7 +211,25 @@ private fun OverlayRow(
     onSelect: () -> Unit,
     onRemove: () -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    val dragDecorationColor = colorResource(R.color.feature_editor_drag_decoration)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            // Long-press-drag onto EditorToolboxStrip stows this overlay (F4, A3). The default
+            // start detector (the non-experimental dragAndDropSource(drawDragDecoration,
+            // transferData) overload) races the child TextButtons' own clickable for the initial
+            // Down in the (later) Main pass and loses every time, so drag never starts (D3, verified
+            // on clip_tablet_1280x800: long-press-drag produced no shadow and the panel scrolled
+            // instead). Detecting the long press ourselves in PointerEventPass.Initial lets this Row
+            // (the ancestor) see every Down before a child can claim it, while a released-early Down
+            // (a plain tap) is left untouched for the child to handle normally. This requires the
+            // experimental raw-pointer-input overload (block), opted into below.
+            .dragAndDropSource(
+                drawDragDecoration = { drawRect(dragDecorationColor) },
+                block = overlayRowDragBlock(overlay.id),
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         TextButton(onClick = onSelect, modifier = Modifier.weight(1f)) {
             Text(
                 text = overlayLabel(overlay),
@@ -191,6 +239,36 @@ private fun OverlayRow(
             )
         }
         TextButton(onClick = onRemove) { Text(stringResource(R.string.feature_editor_remove)) }
+    }
+}
+
+private const val OVERLAY_DRAG_LABEL = "overlay_id"
+
+/**
+ * A tap must still fall through to the row's TextButtons: only a Down held for the platform's long
+ * press timeout without being released starts the transfer; a short tap is left completely
+ * unconsumed so the child's own clickable handles it exactly as if this modifier weren't here.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private fun overlayRowDragBlock(overlayId: String): suspend DragAndDropSourceScope.() -> Unit = {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val timedOut = try {
+            withTimeout(viewConfiguration.longPressTimeoutMillis) {
+                var stillPressed = true
+                while (stillPressed) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id }
+                    stillPressed = change != null && change.pressed
+                }
+            }
+            false
+        } catch (timeout: PointerEventTimeoutCancellationException) {
+            true
+        }
+        if (timedOut) {
+            startTransfer(DragAndDropTransferData(clipData = ClipData.newPlainText(OVERLAY_DRAG_LABEL, overlayId)))
+        }
     }
 }
 
@@ -233,6 +311,71 @@ private fun TextOverlayControls(
     LabelledSlider(R.string.feature_editor_position_y, overlay.style.positionY, 0f..1f, contentColor) {
         onChange(overlay.copy(style = overlay.style.copy(positionY = it)))
     }
+    Text(stringResource(R.string.feature_editor_text_color), color = contentColor, style = MaterialTheme.typography.bodySmall)
+    Row(horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.feature_editor_swatch_spacing))) {
+        TEXT_PALETTE.forEachIndexed { index, colorArgb ->
+            ColorSwatch(
+                color = Color(colorArgb),
+                selected = colorArgb == overlay.style.colorArgb,
+                contentDescription = stringResource(R.string.feature_editor_swatch_color, index + 1),
+                onClick = { onChange(overlay.copy(style = overlay.style.copy(colorArgb = colorArgb))) },
+            )
+        }
+    }
+    Text(stringResource(R.string.feature_editor_text_background), color = contentColor, style = MaterialTheme.typography.bodySmall)
+    Row(horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.feature_editor_swatch_spacing))) {
+        ColorSwatch(
+            color = null,
+            selected = overlay.style.backgroundArgb == null,
+            contentDescription = stringResource(R.string.feature_editor_background_none),
+            onClick = { onChange(overlay.copy(style = overlay.style.copy(backgroundArgb = null))) },
+        )
+        TEXT_PALETTE.forEachIndexed { index, colorArgb ->
+            val backgroundArgb = backgroundOf(colorArgb)
+            ColorSwatch(
+                color = Color(backgroundArgb),
+                selected = backgroundArgb == overlay.style.backgroundArgb,
+                contentDescription = stringResource(R.string.feature_editor_swatch_background, index + 1),
+                onClick = { onChange(overlay.copy(style = overlay.style.copy(backgroundArgb = backgroundArgb))) },
+            )
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.feature_editor_overlay_padding_horizontal))) {
+        Text(stringResource(R.string.feature_editor_text_align), color = contentColor, style = MaterialTheme.typography.bodySmall)
+        FilterChip(
+            selected = overlay.style.centerAligned,
+            onClick = { onChange(overlay.copy(style = overlay.style.copy(centerAligned = true))) },
+            label = { Text(stringResource(R.string.feature_editor_align_center)) },
+        )
+        FilterChip(
+            selected = !overlay.style.centerAligned,
+            onClick = { onChange(overlay.copy(style = overlay.style.copy(centerAligned = false))) },
+            label = { Text(stringResource(R.string.feature_editor_align_left)) },
+        )
+    }
+}
+
+/** [color] null renders the "no background" option: an outlined circle with no fill. */
+@Composable
+private fun ColorSwatch(
+    color: Color?,
+    selected: Boolean,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val size = dimensionResource(R.dimen.feature_editor_swatch_size)
+    val borderWidth = dimensionResource(
+        if (selected) R.dimen.feature_editor_swatch_border_width_selected else R.dimen.feature_editor_swatch_border_width,
+    )
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary else colorResource(R.color.feature_editor_swatch_border)
+    Box(
+        Modifier
+            .size(size)
+            .clip(CircleShape)
+            .let { if (color != null) it.background(color) else it }
+            .border(borderWidth, borderColor, CircleShape)
+            .clickable(onClickLabel = contentDescription, onClick = onClick),
+    )
 }
 
 @Composable

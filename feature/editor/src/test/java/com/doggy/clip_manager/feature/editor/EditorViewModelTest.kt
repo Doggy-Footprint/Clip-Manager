@@ -1,5 +1,6 @@
 package com.doggy.clip_manager.feature.editor
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.media3.common.util.UnstableApi
 import androidx.test.core.app.ApplicationProvider
 import android.content.Context
@@ -30,7 +31,7 @@ class EditorViewModelTest {
 
     @Test
     fun exportSpec_contractE4_normal_handsTheSelectionAndOverlaysToTheExportSpec() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(1 * SEC, 5 * SEC)
         viewModel.chooseCutMode(CutMode.FAST)
@@ -46,7 +47,7 @@ class EditorViewModelTest {
 
     @Test
     fun exportSpec_contractE4_edge_isNullWithoutAnInput() {
-        assertNull(EditorViewModel().exportSpec())
+        assertNull(EditorViewModel(SavedStateHandle()).exportSpec())
     }
 
     // decision G4

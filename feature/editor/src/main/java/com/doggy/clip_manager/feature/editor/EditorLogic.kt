@@ -56,6 +56,15 @@ internal fun clampSelection(durationUs: Long, startUs: Long, endUs: Long): TimeR
     return TimeRange(start, end)
 }
 
+/**
+ * A flip/speed range mutators create is always the result of [clampSelection] against the
+ * durationUs at the time, so on restore (D2) a range that [clampSelection] would still leave
+ * unchanged is exactly the set of ranges that already fit [durationUs]; anything else is an entry
+ * that no longer matches the restored duration and is dropped rather than silently re-clamped.
+ */
+internal fun fitsDuration(durationUs: Long, range: TimeRange): Boolean =
+    clampSelection(durationUs, range.startUs, range.endUs) == range
+
 internal fun withRange(overlay: OverlaySpec, id: String, range: TimeRange): OverlaySpec = when (overlay) {
     is TextOverlay -> overlay.copy(id = id, range = range)
     is ImageOverlay -> overlay.copy(id = id, range = range)

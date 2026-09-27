@@ -1,5 +1,6 @@
 package com.doggy.clip_manager.feature.editor
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.media3.common.util.UnstableApi
 import com.doggy.clip_manager.core.editor.FlipRange
 import com.doggy.clip_manager.core.editor.FrameMode
@@ -36,7 +37,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun addSpeed_obligationV5_normal_everySpeedStepIsAccepted() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 1_000 * SEC)
 
         SPEED_STEPS.forEachIndexed { i, step ->
@@ -50,7 +51,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun addSpeed_obligationV5_error_case11_aSpeedOutsideTheAllowedStepsIsRejected() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
 
@@ -62,7 +63,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun updateSpeed_obligationV5_error_case11b_aSpeedOutsideTheAllowedStepsIsRejected() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
         viewModel.addSpeed(2f)
@@ -76,7 +77,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun addSpeedAndUpdateSpeed_obligationV5_error_case9_anOverlappingRangeIsRejectedByBothAddAndUpdate() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
         viewModel.addSpeed(2f)
@@ -95,7 +96,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun addSpeed_obligationV5_boundary_case10_touchingRangesAreAllowedNotOverlapping() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
         viewModel.addSpeed(2f)
@@ -114,7 +115,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun addFlip_obligationV6_error_case12_bothAxesFalseIsRejected() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
 
@@ -126,7 +127,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun updateFlip_obligationV6_error_bothAxesFalseIsRejectedAndLeavesTheEntryUnchanged() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
         viewModel.addFlip(horizontal = true, vertical = false)
@@ -143,7 +144,7 @@ class EditorEffectsViewModelTest {
     @Test
     fun updateSpeed_obligationV7_boundary_case14_anOutOfBoundsRangeIsStoredClamped() {
         val duration = 10 * SEC
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", duration)
         viewModel.setSelection(1 * SEC, 2 * SEC)
         viewModel.addSpeed(1.25f)
@@ -159,7 +160,7 @@ class EditorEffectsViewModelTest {
     @Test
     fun updateFlip_obligationV7_boundary_case14_anOutOfBoundsRangeIsStoredClamped() {
         val duration = 10 * SEC
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", duration)
         viewModel.setSelection(1 * SEC, 2 * SEC)
         viewModel.addFlip(horizontal = true, vertical = false)
@@ -180,7 +181,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun begin_obligationV8_edge_case13a_openingADifferentFileResetsEffectsToDefaults() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/a.mp4", 10 * SEC)
         viewModel.chooseRatio(RatioPreset.WIDE)
         viewModel.chooseFrameMode(FrameMode.FIT)
@@ -198,7 +199,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun begin_obligationV8_edge_case13b_reopeningAfterEndKeepsTheEffects() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/a.mp4", 10 * SEC)
         viewModel.chooseRatio(RatioPreset.WIDE)
         viewModel.chooseFrameMode(FrameMode.FIT)
@@ -220,7 +221,7 @@ class EditorEffectsViewModelTest {
     @Test
     fun begin_obligationV8_edge_case13note_reopeningTheOriginalFileAfterASecondFileResetsEffects() {
         // C13 note: the session remembers only the last opened path, so A -> B -> A resets, unlike A -> end() -> A (case13b).
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/a.mp4", 10 * SEC)
         viewModel.chooseRatio(RatioPreset.WIDE)
         viewModel.chooseFrameMode(FrameMode.FIT)
@@ -239,7 +240,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun removeSpeed_obligationV8_edge_outOfRangeIndexDoesNotThrowAndLeavesTheListUnchanged() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
         viewModel.addSpeed(2f)
@@ -252,7 +253,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun removeFlip_obligationV8_edge_outOfRangeIndexDoesNotThrowAndLeavesTheListUnchanged() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
         viewModel.addFlip(horizontal = true, vertical = false)
@@ -265,7 +266,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun updateSpeed_obligationV8_edge_outOfRangeIndexReturnsFalseWithoutThrowing() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
 
@@ -277,7 +278,7 @@ class EditorEffectsViewModelTest {
 
     @Test
     fun updateFlip_obligationV8_edge_outOfRangeIndexReturnsFalseWithoutThrowing() {
-        val viewModel = EditorViewModel()
+        val viewModel = EditorViewModel(SavedStateHandle())
         viewModel.begin("/in.mp4", 10 * SEC)
         viewModel.setSelection(0L, 4 * SEC)
 

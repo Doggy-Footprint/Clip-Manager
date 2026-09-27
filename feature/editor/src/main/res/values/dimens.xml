@@ -10,4 +10,9 @@
     <dimen name="feature_editor_overlay_alpha_thumb_radius">10dp</dimen>
     <dimen name="feature_editor_panel_height">260dp</dimen>
     <dimen name="feature_editor_overlay_padding_horizontal">8dp</dimen>
+    <dimen name="feature_editor_swatch_size">28dp</dimen>
+    <dimen name="feature_editor_swatch_spacing">6dp</dimen>
+    <dimen name="feature_editor_swatch_border_width">1dp</dimen>
+    <dimen name="feature_editor_swatch_border_width_selected">3dp</dimen>
+    <dimen name="feature_editor_toolbox_strip_height">56dp</dimen>
 </resources>

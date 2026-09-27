@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches feature_editor_background (black): the floating panel toggle sits over the editor,
+         so its icon needs an explicit light color rather than inheriting a theme content color. -->
+    <color name="floating_panel_toggle_icon">#FFFFFFFF</color>
+</resources>

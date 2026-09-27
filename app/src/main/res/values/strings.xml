@@ -8,4 +8,6 @@
     <string name="settings_public_section_title">일반</string>
     <string name="settings_clicker_hi">hi</string>
     <string name="settings_clicker_bye">bye</string>
+    <string name="floating_panel_open">패널 열기</string>
+    <string name="floating_panel_close">패널 닫기</string>
 </resources>

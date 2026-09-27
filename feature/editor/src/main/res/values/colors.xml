@@ -7,4 +7,6 @@
     <color name="feature_editor_overlay_handle">#FFFFFFFF</color>
     <color name="feature_editor_overlay_handle_glyph">#FF000000</color>
     <color name="feature_editor_overlay_alpha_track">#66FFFFFF</color>
+    <color name="feature_editor_drag_decoration">#80FFFFFF</color>
+    <color name="feature_editor_swatch_border">#80FFFFFF</color>
 </resources>
