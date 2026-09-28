@@ -7,7 +7,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.draganddrop.DragAndDropSourceScope
 import androidx.compose.foundation.draganddrop.dragAndDropSource
-import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +15,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -212,9 +213,14 @@ private fun OverlayRow(
     onRemove: () -> Unit,
 ) {
     val dragDecorationColor = colorResource(R.color.feature_editor_drag_decoration)
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
     Row(
         Modifier
             .fillMaxWidth()
+            // The panel Column scrolls (verticalScroll), so a row near an edge can be only
+            // partially visible when its long press fires; bringIntoViewRequester lets the drag
+            // block ask the ancestor scroll container to reveal it before the shadow starts.
+            .bringIntoViewRequester(bringIntoViewRequester)
             // Long-press-drag onto EditorToolboxStrip stows this overlay (F4, A3). The default
             // start detector (the non-experimental dragAndDropSource(drawDragDecoration,
             // transferData) overload) races the child TextButtons' own clickable for the initial
@@ -226,7 +232,7 @@ private fun OverlayRow(
             // experimental raw-pointer-input overload (block), opted into below.
             .dragAndDropSource(
                 drawDragDecoration = { drawRect(dragDecorationColor) },
-                block = overlayRowDragBlock(overlay.id),
+                block = overlayRowDragBlock(overlay.id, bringIntoViewRequester),
             ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -246,27 +252,41 @@ private const val OVERLAY_DRAG_LABEL = "overlay_id"
 
 /**
  * A tap must still fall through to the row's TextButtons: only a Down held for the platform's long
- * press timeout without being released starts the transfer; a short tap is left completely
- * unconsumed so the child's own clickable handles it exactly as if this modifier weren't here.
+ * press timeout without being released or moved beyond touch slop starts the transfer; a short tap
+ * or an early drag-away is left completely unconsumed so the child's own clickable, or the ancestor
+ * scroll, handles it exactly as if this modifier weren't here.
+ *
+ * `bringIntoView()` is a plain suspend fun, not restricted to `awaitPointerEventScope`, so the long
+ * press is detected in its own `awaitPointerEventScope` call and the scroll request happens between
+ * that call and `startTransfer` rather than inside it (an `awaitEachGesture` block cannot host it).
  */
 @OptIn(ExperimentalFoundationApi::class)
-private fun overlayRowDragBlock(overlayId: String): suspend DragAndDropSourceScope.() -> Unit = {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        val timedOut = try {
-            withTimeout(viewConfiguration.longPressTimeoutMillis) {
-                var stillPressed = true
-                while (stillPressed) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    val change = event.changes.firstOrNull { it.id == down.id }
-                    stillPressed = change != null && change.pressed
+private fun overlayRowDragBlock(
+    overlayId: String,
+    bringIntoViewRequester: BringIntoViewRequester,
+): suspend DragAndDropSourceScope.() -> Unit = {
+    while (true) {
+        val longPressed = awaitPointerEventScope {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val downPosition = down.position
+            try {
+                withTimeout(viewConfiguration.longPressTimeoutMillis) {
+                    var stillPressed = true
+                    while (stillPressed) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id }
+                        stillPressed = change != null &&
+                            change.pressed &&
+                            (change.position - downPosition).getDistance() <= viewConfiguration.touchSlop
+                    }
                 }
+                false
+            } catch (timeout: PointerEventTimeoutCancellationException) {
+                true
             }
-            false
-        } catch (timeout: PointerEventTimeoutCancellationException) {
-            true
         }
-        if (timedOut) {
+        if (longPressed) {
+            bringIntoViewRequester.bringIntoView()
             startTransfer(DragAndDropTransferData(clipData = ClipData.newPlainText(OVERLAY_DRAG_LABEL, overlayId)))
         }
     }

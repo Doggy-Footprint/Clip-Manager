@@ -1,4 +1,0 @@
-File: 29be29e194db5768-editor-toolbox-fullscreen-style-restore-limit.md
-Summary: Editor toolbox stow, fullscreen + floating panel, text style palette, SavedStateHandle restore implemented; verifier limit reached with intermittent edge-row drag-to-stow failure open
-Related Files: feature/editor/src/main/java/com/doggy/clip_manager/feature/editor/EditorViewModel.kt, feature/editor/src/main/java/com/doggy/clip_manager/feature/editor/EditorPersistence.kt, feature/editor/src/main/java/com/doggy/clip_manager/feature/editor/EditorToolPanel.kt, feature/editor/src/main/java/com/doggy/clip_manager/feature/editor/EditorToolboxStrip.kt, app/src/main/java/com/doggy/clip_manager/ui/ClipApp.kt, agent-docs/spec-logs/ad27e5f2d8c95388-editor-toolbox-fullscreen-style-restore.md
-Related Symbols: EditorViewModel, stow, unstow, toggleFullscreen, TEXT_PALETTE, backgroundOf, EditorToolboxStrip, OverlayRow, ClipApp
