@@ -10,4 +10,9 @@
     <string name="settings_clicker_bye">bye</string>
     <string name="floating_panel_open">패널 열기</string>
     <string name="floating_panel_close">패널 닫기</string>
+    <string name="tab_trash">휴지통</string>
+    <string name="trash_restore">복원</string>
+    <string name="trash_empty">비우기</string>
+    <string name="trash_close">닫기</string>
+    <string name="settings_pathless_media_debug_toggle">경로 없는 미디어로 취급</string>
 </resources>

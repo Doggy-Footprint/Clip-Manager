@@ -1,5 +1,6 @@
 package com.doggy.clip_manager.feature.sidelayer
 
+import com.doggy.clip_manager.core.data.operation.ArchiveRepository
 import com.doggy.clip_manager.core.model.FileEntry
 import com.doggy.clip_manager.core.testing.repository.TestFileRepository
 import com.doggy.clip_manager.core.testing.util.MainDispatcherRule
@@ -20,6 +21,7 @@ class BrowserViewModelTest {
 
     private val root = File("/storage")
     private val movies = File(root, "Movies")
+    private val archiveRepository = ArchiveRepository()
     private val repository = TestFileRepository(
         rootDir = root,
         entriesByDir = mapOf(
@@ -30,7 +32,7 @@ class BrowserViewModelTest {
 
     @Test
     fun open_directory_listsChildrenAndLeavesRoot() = runTest {
-        val viewModel = BrowserViewModel(repository)
+        val viewModel = BrowserViewModel(repository, archiveRepository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
 
         viewModel.open(FileEntry(movies, isDirectory = true, isVideo = false))
@@ -43,7 +45,7 @@ class BrowserViewModelTest {
 
     @Test
     fun navigateUp_atRoot_returnsFalse() = runTest {
-        val viewModel = BrowserViewModel(repository)
+        val viewModel = BrowserViewModel(repository, archiveRepository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
 
         assertFalse(viewModel.navigateUp())
@@ -52,7 +54,7 @@ class BrowserViewModelTest {
 
     @Test
     fun navigateUp_fromChild_returnsToRoot() = runTest {
-        val viewModel = BrowserViewModel(repository)
+        val viewModel = BrowserViewModel(repository, archiveRepository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         viewModel.open(FileEntry(movies, isDirectory = true, isVideo = false))
 

@@ -1,9 +1,11 @@
 package com.doggy.clip_manager.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +28,9 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     scrollToSectionId: String? = null,
     onScrolledToSection: () -> Unit = {},
+    showPathlessMediaDebugToggle: Boolean = false,
+    pathlessMediaDebugEnabled: Boolean = false,
+    onPathlessMediaDebugChange: (Boolean) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val sectionOffsets = remember { mutableStateMapOf<String, Int>() }
@@ -45,6 +50,12 @@ fun SettingsScreen(
         var isHi by rememberSaveable { mutableStateOf(true) }
         Button(onClick = { isHi = !isHi }) {
             Text(stringResource(if (isHi) R.string.settings_clicker_hi else R.string.settings_clicker_bye))
+        }
+        if (showPathlessMediaDebugToggle) {
+            Row {
+                Text(stringResource(R.string.settings_pathless_media_debug_toggle))
+                Switch(checked = pathlessMediaDebugEnabled, onCheckedChange = onPathlessMediaDebugChange)
+            }
         }
         sections.forEach { section ->
             Column(

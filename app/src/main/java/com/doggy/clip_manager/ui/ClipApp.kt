@@ -1,6 +1,10 @@
 package com.doggy.clip_manager.ui
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -22,6 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -38,6 +43,8 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import com.doggy.clip_manager.R
+import com.doggy.clip_manager.core.data.operation.FileOperationSource
+import com.doggy.clip_manager.core.data.operation.TrashEntry
 import com.doggy.clip_manager.core.designsystem.icon.ClipIcons
 import com.doggy.clip_manager.core.extension.ExtensionNavigator
 import com.doggy.clip_manager.core.extension.LocalExtensionNavigator
@@ -55,6 +62,10 @@ import com.doggy.clip_manager.feature.editor.EditorViewModel
 import com.doggy.clip_manager.feature.editor.R as EditorR
 import com.doggy.clip_manager.feature.mainlayer.ImageViewerPane
 import com.doggy.clip_manager.feature.mainlayer.PlayerPane
+import com.doggy.clip_manager.feature.mainlayer.ViewerScreen
+import java.io.File
+import com.doggy.clip_manager.feature.sidelayer.OperationViewModel
+import com.doggy.clip_manager.feature.sidelayer.TrashDialog
 import kotlin.math.roundToInt
 
 private enum class LayerLayout { WIDE, THIN, PORTRAIT }
@@ -66,6 +77,17 @@ fun ClipApp() {
     var selectedPath by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedMediaUri by rememberSaveable { mutableStateOf<String?>(null) }
+    // Not rememberSaveable: FileOperationSource isn't Parcelable, and losing the open viewer on
+    // rotation is an acceptable trade-off versus adding a custom Saver for this transient state.
+    var viewerSource by remember { mutableStateOf<FileOperationSource?>(null) }
+    // R15: debug-build-only device-verification aid, so URI-only media flows (R13) can be
+    // exercised without a naturally path-less MediaStore row (A12). Detected via the manifest's
+    // debuggable flag rather than BuildConfig so no module needs buildFeatures.buildConfig added.
+    val appContext = androidx.compose.ui.platform.LocalContext.current
+    val isDebugBuild = remember(appContext) {
+        (appContext.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
+    var treatMediaAsPathless by rememberSaveable { mutableStateOf(false) }
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var pendingSettingsSectionId by rememberSaveable { mutableStateOf<String?>(null) }
     // F9: the floating panel's open state and position survive rotation and process restore the
@@ -87,6 +109,18 @@ fun ClipApp() {
     }
     val editor: EditorViewModel = hiltViewModel()
     val extensionsViewModel: ExtensionsViewModel = hiltViewModel()
+    val operationViewModel: OperationViewModel = hiltViewModel()
+    val showTrash by operationViewModel.showTrash.collectAsStateWithLifecycle()
+    val trashEntries by operationViewModel.trashEntries.collectAsStateWithLifecycle()
+    val consentRequest by operationViewModel.consentRequest.collectAsStateWithLifecycle()
+    val consentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        operationViewModel.onConsentResult(result.resultCode == android.app.Activity.RESULT_OK)
+    }
+    LaunchedEffect(consentRequest) {
+        consentRequest?.let { sender ->
+            consentLauncher.launch(IntentSenderRequest.Builder(sender).build())
+        }
+    }
     val effectiveTab = resolveTabKey(
         selectedTab,
         extensionsViewModel.tabs.map { it.id }.toSet(),
@@ -98,8 +132,15 @@ fun ClipApp() {
         CompositionLocalProvider(LocalExtensionNavigator provides navigator) {
             BoxWithConstraints(Modifier.safeDrawingPadding()) {
                 val mainLayer = @Composable { modifier: Modifier ->
+                    val currentViewerSource = viewerSource
                     if (editor.editing) {
                         EditorPane(viewModel = editor, modifier = modifier)
+                    } else if (currentViewerSource != null) {
+                        ViewerScreen(
+                            source = currentViewerSource,
+                            onClose = { viewerSource = null },
+                            modifier = modifier,
+                        )
                     } else if (selectedImageUri != null) {
                         ImageViewerPane(uri = selectedImageUri, modifier = modifier)
                     } else {
@@ -211,6 +252,7 @@ fun ClipApp() {
                         onSelect = { selectedTab = it },
                         extensions = extensionsViewModel.tabs,
                         compact = layout != LayerLayout.WIDE,
+                        onOpenTrash = { operationViewModel.openTrash() },
                     )
                     VerticalDivider()
                     if (effectiveTab == TabKey.Settings) {
@@ -219,14 +261,38 @@ fun ClipApp() {
                             modifier = Modifier.weight(1f),
                             scrollToSectionId = pendingSettingsSectionId,
                             onScrolledToSection = { pendingSettingsSectionId = null },
+                            showPathlessMediaDebugToggle = isDebugBuild,
+                            pathlessMediaDebugEnabled = treatMediaAsPathless,
+                            onPathlessMediaDebugChange = { treatMediaAsPathless = it },
                         )
                     } else {
                         val onMediaEntrySelected: (MediaEntry) -> Unit = { entry ->
-                            if (entry.kind == MediaKind.IMAGE) {
-                                selectedImageUri = entry.uri
-                            } else {
-                                selectedImageUri = null
-                                entry.filePath?.let { selectedPath = it }
+                            viewerSource = null
+                            when (entry.kind) {
+                                MediaKind.IMAGE -> selectedImageUri = entry.uri
+                                MediaKind.AUDIO -> {
+                                    // D6: the native video player doesn't support audio-only
+                                    // streams, so every audio entry opens through ViewerScreen's
+                                    // dedicated audio pane instead, path or not.
+                                    selectedImageUri = null
+                                    val path = entry.filePath
+                                    viewerSource = if (path != null) {
+                                        FileOperationSource.Local(File(path))
+                                    } else {
+                                        FileOperationSource.Content(Uri.parse(entry.uri), entry.displayName)
+                                    }
+                                }
+                                MediaKind.VIDEO -> {
+                                    selectedImageUri = null
+                                    val path = entry.filePath
+                                    if (path != null) {
+                                        selectedPath = path
+                                    } else {
+                                        // URI-only video has no filesystem path for the native
+                                        // player, so it opens through ViewerScreen instead (R13).
+                                        viewerSource = FileOperationSource.Content(Uri.parse(entry.uri), entry.displayName)
+                                    }
+                                }
                             }
                             selectedMediaUri = entry.uri
                         }
@@ -234,8 +300,13 @@ fun ClipApp() {
                             when (tab) {
                                 MediaTab.FILES -> BrowserScreenRoute(
                                     onOpenVideo = {
+                                        viewerSource = null
                                         selectedImageUri = null
                                         selectedPath = it
+                                    },
+                                    onOpenViewer = { source ->
+                                        selectedImageUri = null
+                                        viewerSource = source
                                     },
                                     selectedPath = selectedPath,
                                     compact = layout == LayerLayout.THIN,
@@ -245,18 +316,21 @@ fun ClipApp() {
                                     kind = MediaKind.VIDEO,
                                     onEntrySelected = onMediaEntrySelected,
                                     selectedUri = selectedMediaUri,
+                                    treatAsPathless = treatMediaAsPathless,
                                     modifier = modifier,
                                 )
                                 MediaTab.AUDIO -> MediaGridRoute(
                                     kind = MediaKind.AUDIO,
                                     onEntrySelected = onMediaEntrySelected,
                                     selectedUri = selectedMediaUri,
+                                    treatAsPathless = treatMediaAsPathless,
                                     modifier = modifier,
                                 )
                                 MediaTab.IMAGES -> MediaGridRoute(
                                     kind = MediaKind.IMAGE,
                                     onEntrySelected = onMediaEntrySelected,
                                     selectedUri = selectedMediaUri,
+                                    treatAsPathless = treatMediaAsPathless,
                                     modifier = modifier,
                                 )
                             }
@@ -292,6 +366,14 @@ fun ClipApp() {
                         }
                     }
                 }
+            }
+            if (showTrash) {
+                TrashDialog(
+                    entries = trashEntries,
+                    onRestore = { operationViewModel.restore(it) },
+                    onEmpty = { operationViewModel.emptyTrash() },
+                    onDismiss = { operationViewModel.closeTrash() },
+                )
             }
         }
     }

@@ -11,4 +11,7 @@ dependencies {
     implementation(projects.core.data)
     implementation(projects.core.model)
     implementation(libs.androidx.activity.compose)
+
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.test.core)
 }

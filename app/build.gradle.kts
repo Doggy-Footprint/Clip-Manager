@@ -55,6 +55,7 @@ android {
 
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
+    implementation(projects.core.data)
     implementation(projects.core.designsystem)
     implementation(projects.core.editor)
     implementation(projects.core.extensionApi)
@@ -80,5 +81,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.test.core)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

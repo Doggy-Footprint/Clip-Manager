@@ -1,8 +1,14 @@
 package com.doggy.clip_manager.feature.sidelayer
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -58,22 +64,48 @@ fun MediaGridRoute(
     onEntrySelected: (MediaEntry) -> Unit,
     modifier: Modifier = Modifier,
     selectedUri: String? = null,
+    onEntryLongClick: (MediaEntry) -> Unit = {},
+    // R15 debug toggle: when true, every entry is treated as path-less so copy/move/delete/viewer
+    // flows all go through the Content(URI) path instead of Local(File), for device verification.
+    treatAsPathless: Boolean = false,
     viewModel: MediaGridViewModel = hiltViewModel(),
+    operations: OperationViewModel = hiltViewModel(),
 ) {
     val permission = rememberStoragePermissionState()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val refreshTick by operations.refreshTick.collectAsStateWithLifecycle()
+    val message by operations.message.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(kind) { viewModel.setKind(kind) }
     LaunchedEffect(permission.granted) {
         if (permission.granted) viewModel.reload()
     }
+    LaunchedEffect(refreshTick) {
+        if (refreshTick > 0) viewModel.reload()
+    }
+    // R16: shown once as a Snackbar then consumed so it isn't re-shown on recomposition.
+    LaunchedEffect(message) {
+        val text = message ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(text)
+        operations.consumeMessage()
+    }
 
-    MediaGridScreen(
-        uiState = uiState,
-        permissionGranted = permission.granted,
-        onRequestPermission = permission::request,
-        onEntryClick = onEntrySelected,
-        modifier = modifier,
-        selectedUri = selectedUri,
-    )
+    val effectiveUiState = (uiState as? MediaGridUiState.Success)?.let { success ->
+        if (treatAsPathless) MediaGridUiState.Success(success.entries.map { it.copy(filePath = null) }) else success
+    } ?: uiState
+
+    Box(modifier.fillMaxSize()) {
+        MediaGridScreen(
+            uiState = effectiveUiState,
+            permissionGranted = permission.granted,
+            onRequestPermission = permission::request,
+            onEntryClick = onEntrySelected,
+            modifier = Modifier.fillMaxSize(),
+            selectedUri = selectedUri,
+            onEntryLongClick = onEntryLongClick,
+            operations = operations,
+        )
+        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
 }

@@ -9,5 +9,8 @@ android {
 
 dependencies {
     implementation(projects.core.player)
+    implementation(projects.core.data)
     testImplementation(libs.androidx.activity.compose)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.test.core)
 }

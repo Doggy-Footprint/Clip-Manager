@@ -33,6 +33,7 @@ fun TabLayer(
     onSelect: (TabKey) -> Unit,
     extensions: List<TabExtension>,
     compact: Boolean,
+    onOpenTrash: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     NavigationRail(modifier = modifier.fillMaxHeight().width(dimensionResource(if (compact) R.dimen.tab_layer_compact_width else R.dimen.tab_layer_width))) {
@@ -56,6 +57,13 @@ fun TabLayer(
         }
         Spacer(Modifier.weight(1f))
         HorizontalDivider(Modifier.padding(vertical = dimensionResource(R.dimen.tab_layer_divider_padding)))
+        RailItem(
+            icon = ClipIcons.Trash,
+            label = stringResource(R.string.tab_trash),
+            compact = compact,
+            selected = false,
+            onClick = onOpenTrash,
+        )
         RailItem(
             icon = ClipIcons.Settings,
             label = stringResource(R.string.tab_settings),
