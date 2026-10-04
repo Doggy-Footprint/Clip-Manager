@@ -12,8 +12,10 @@ keystore.properties
 *.jks
 *.keystore
 
-# Eclipse/IDE compile output; the Gradle build writes these
-bin/
+# IDE output copies of sources; .harness/bin contains required workflow scripts.
+/build-logic/convention/bin/
+/core/model/bin/
+
 agent-docs/specs/.active
 agent-docs/specs/.running/
 agent-docs/specs/.seed/
