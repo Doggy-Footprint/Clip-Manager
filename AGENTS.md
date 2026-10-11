@@ -2,7 +2,7 @@
 
 All-in-one file exploring and managing app for android. Target files are videos, images, sounds, and with plugins. An user can assign tag-system for each files for convinient management. This app supports viewers for each type of files and editing features.
 
-<!-- harness:begin 0.16.1 -->
+<!-- harness:begin 0.18.0 -->
 # Documentation Guide
 
 "Documentation" refers to standalone docs, inline comments, and docstrings.
@@ -123,7 +123,7 @@ Required file structure:
 - `## Next Step`
 - `## Open Questions`
 - `## Spec` (active or archived spec path, version, status, and run ID)
-- `## Execution Ledger` (findings and dispositions, evidence and mutation outcomes, correction and verifier counters)
+- `## Execution Ledger` (findings and dispositions, evidence, fuzz, and mutation outcomes (hand and tool), correction and verifier counters)
 
 An incomplete nonterminal workflow keeps its active spec in `agent-docs/specs/`
 and records this handoff path in the spec. A limit handoff points to the archived
