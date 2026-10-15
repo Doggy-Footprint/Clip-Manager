@@ -42,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.max
 
 @Composable
 fun ViewerScreen(
@@ -54,8 +55,9 @@ fun ViewerScreen(
     val scope = rememberCoroutineScope()
     LaunchedEffect(source) { content = viewModel.resolve(source) }
 
+    val current = content
     Box(modifier.fillMaxSize()) {
-        when (val current = content) {
+        when (current) {
             null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
             is ViewerContent.Error -> Text(current.message, modifier = Modifier.align(Alignment.Center))
             is ViewerContent.Video -> PlayerPane(path = current.path, isFullscreen = false, onToggleFullscreen = {})
@@ -100,8 +102,10 @@ fun ViewerScreen(
                 )
             }
         }
-        IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopStart)) {
-            Icon(ClipIcons.ArrowBack, contentDescription = null)
+        if (current !is ViewerContent.Cbz) {
+            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopStart)) {
+                Icon(ClipIcons.ArrowBack, contentDescription = null)
+            }
         }
     }
 }
@@ -151,39 +155,29 @@ private fun PdfViewerContent(path: String) {
 
 @Composable
 private fun CbzViewerContent(archive: File, entries: List<String>, password: CharArray?, viewModel: ViewerViewModel) {
-    var pageIndex by remember(archive) { mutableIntStateOf(0) }
-    var bitmap by remember(archive, pageIndex) { mutableStateOf<Bitmap?>(null) }
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(archive, pageIndex, entries) {
-        bitmap = if (entries.isEmpty()) {
-            null
-        } else {
+    if (entries.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("이미지가 없습니다") }
+        return
+    }
+    CbzReader(
+        title = archive.name.substringBeforeLast('.', archive.name),
+        pageCount = entries.size,
+        loadPage = { index, maxSidePx ->
             withContext(Dispatchers.IO) {
                 runCatching {
-                    val bytes = viewModel.readEntryBytes(archive, entries[pageIndex.coerceIn(0, entries.size - 1)], password)
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    val bytes = viewModel.readEntryBytes(archive, entries[index.coerceIn(0, entries.size - 1)], password)
+                    if (maxSidePx == null) {
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    } else {
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                        var sample = 1
+                        while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSidePx) sample *= 2
+                        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+                    }
                 }.getOrNull()
             }
-        }
-    }
-
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (entries.isEmpty()) {
-            Text("이미지가 없습니다")
-            return@Box
-        }
-        bitmap?.let {
-            Image(it.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
-        }
-        Row(Modifier.align(Alignment.BottomCenter), horizontalArrangement = Arrangement.Center) {
-            IconButton(onClick = { if (pageIndex > 0) pageIndex-- }, enabled = pageIndex > 0) {
-                Icon(ClipIcons.SkipPrevious, contentDescription = null)
-            }
-            Text("${pageIndex + 1}/${entries.size}", modifier = Modifier.align(Alignment.CenterVertically))
-            IconButton(onClick = { if (pageIndex < entries.size - 1) pageIndex++ }, enabled = pageIndex < entries.size - 1) {
-                Icon(ClipIcons.SkipNext, contentDescription = null)
-            }
-        }
-    }
+        },
+    )
 }
