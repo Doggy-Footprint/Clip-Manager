@@ -104,7 +104,7 @@ fun ViewerScreen(
         }
         if (current !is ViewerContent.Cbz) {
             IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopStart)) {
-                Icon(ClipIcons.ArrowBack, contentDescription = null)
+                Icon(ClipIcons.ArrowBack, contentDescription = "뒤로")
             }
         }
     }

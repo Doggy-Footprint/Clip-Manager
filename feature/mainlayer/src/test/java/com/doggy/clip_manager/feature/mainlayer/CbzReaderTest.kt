@@ -1,5 +1,7 @@
 package com.doggy.clip_manager.feature.mainlayer
 
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
@@ -574,13 +576,17 @@ class CbzReaderTest {
 
     /** R8: other viewers keep a clickable back control (paired with the CBZ negative test above). */
     @Test
-    fun o7_viewerScreen_textSource_hasClickableBackNode() {
+    fun o7_viewerScreen_textSource_backButtonInvokesOnClose() {
         val txt = File(tempFolder.root, "note.txt").also { it.writeText("hello") }
-        openViewer(txt)
-        composeTestRule.waitUntil(5_000) {
-            composeTestRule.onAllNodes(hasClickAction()).fetchSemanticsNodes().isNotEmpty()
+        var closed = 0
+        val viewModel = ViewerViewModel(context, ArchiveRepository())
+        composeTestRule.setContent {
+            ViewerScreen(source = FileOperationSource.Local(txt), onClose = { closed++ }, viewModel = viewModel)
         }
-        assertTrue(composeTestRule.onAllNodes(hasClickAction()).fetchSemanticsNodes().isNotEmpty())
+        composeTestRule.waitUntilAtLeastOneExists(hasContentDescription("뒤로"), 5_000)
+        composeTestRule.onNode(hasContentDescription("뒤로")).assertHasClickAction().performClick()
+        composeTestRule.waitForIdle()
+        assertEquals(1, closed)
     }
 
     private companion object {
